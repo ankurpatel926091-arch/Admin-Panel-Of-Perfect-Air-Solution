@@ -1,5 +1,6 @@
 import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import perfectAirLogo from "../assets/Perfect Air Logo.png";
 import {
   LayoutDashboard,
   FileText,
@@ -69,23 +70,19 @@ const AdminLayout = () => {
       >
         {/* Brand Header */}
         <div className="h-20 sm:h-[84px] px-5 border-b border-white/[0.08] bg-[#031322]/40 flex items-center justify-between shrink-0">
-          <Link to="/admin" className="flex items-center gap-3 group overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 text-white flex items-center justify-center font-black text-sm shadow-md shadow-cyan-950/40 shrink-0 group-hover:scale-105 transition-all">
-              PA
-            </div>
-            {sidebarOpen && (
-              <div className="min-w-0">
-                <div className="text-sm font-black text-white tracking-tight leading-none group-hover:text-cyan-300 transition-colors truncate">
-                  PERFECT AIR <span className="text-[#38BDF8]">ADMIN</span>
-                </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1.5 flex items-center gap-1">
-                  <Sparkles size={10} className="text-[#38BDF8]" />
-                  HVAC Portal
-                </div>
-              </div>
-            )}
-          </Link>
-        </div>
+  <Link to="/admin" className="flex items-center gap-3 group overflow-hidden">
+    
+    <div className="w-10 h-26 flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
+      <img
+        src={perfectAirLogo}
+        alt="Perfect Air Solution Logo"
+        className="w-full h-full object-contain"
+      />
+    </div>
+
+   
+  </Link>
+</div>
 
         {/* Navigation Links */}
         <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto">
