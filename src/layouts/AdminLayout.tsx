@@ -69,20 +69,17 @@ const AdminLayout = () => {
         } bg-[#051B30] text-slate-200 border-r border-[#0D2D4E] flex flex-col shrink-0 transition-all duration-300 z-30 shadow-xl`}
       >
         {/* Brand Header */}
-        <div className="h-20 sm:h-[84px] px-5 border-b border-white/[0.08] bg-[#031322]/40 flex items-center justify-between shrink-0">
-  <Link to="/admin" className="flex items-center gap-3 group overflow-hidden">
-    
-    <div className="w-10 h-26 flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
-      <img
-        src={perfectAirLogo}
-        alt="Perfect Air Solution Logo"
-        className="w-full h-full object-contain"
-      />
-    </div>
-
-   
-  </Link>
-</div>
+        <div className="h-20 sm:h-[84px] px-4 sm:px-5 border-b border-white/[0.08] bg-[#031322]/40 flex items-center shrink-0 overflow-hidden">
+          <Link to="/admin" className="flex items-center group w-full py-1">
+            <img
+              src={perfectAirLogo}
+              alt="Perfect Air Solution Logo"
+              className={`${
+                sidebarOpen ? "h-14 sm:h-16 w-auto max-w-[200px]" : "h-10 w-auto max-w-[48px]"
+              } object-contain group-hover:scale-105 transition-all duration-300 drop-shadow`}
+            />
+          </Link>
+        </div>
 
         {/* Navigation Links */}
         <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto">
