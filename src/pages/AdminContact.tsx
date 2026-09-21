@@ -6,23 +6,18 @@ import AdminPagination from '@/components/AdminPagination';
 import {
   MessageSquare,
   Phone,
-  Mail,
   Search,
   X,
-  Sparkles,
   ExternalLink,
   Calendar,
   CheckCircle2,
   Clock,
   Trash2,
-  User,
-  Send,
   MessageCircle,
-  Filter,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-const STATUS_FILTERS = ['all', 'New', 'Contacted', 'In Progress', 'Resolved'];
+const STATUS_FILTERS = ['all', 'New', 'Contacted', 'Resolved'];
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -35,11 +30,6 @@ const getStatusBadge = (status: string) => {
       return {
         bg: 'bg-blue-50 text-blue-700 border-blue-200',
         dot: 'bg-blue-500',
-      };
-    case 'In Progress':
-      return {
-        bg: 'bg-amber-50 text-amber-800 border-amber-200',
-        dot: 'bg-amber-500',
       };
     case 'Resolved':
       return {
@@ -112,9 +102,7 @@ const AdminContact: React.FC = () => {
         q === '' ||
         item.name?.toLowerCase().includes(q) ||
         item.email?.toLowerCase().includes(q) ||
-        item.phone?.includes(q) ||
-        item.service?.toLowerCase().includes(q) ||
-        item.message?.toLowerCase().includes(q);
+        item.phone?.includes(q);
 
       return matchesStatus && matchesSearch;
     });
@@ -126,7 +114,6 @@ const AdminContact: React.FC = () => {
   }, [filteredContacts, currentPage, itemsPerPage]);
 
   const newCount = contacts.filter((c: any) => (statusOverrides[c._id] || c.status) === 'New').length;
-  const inProgressCount = contacts.filter((c: any) => (statusOverrides[c._id] || c.status) === 'In Progress').length;
   const resolvedCount = contacts.filter((c: any) => (statusOverrides[c._id] || c.status) === 'Resolved').length;
 
   return (
@@ -143,15 +130,11 @@ const AdminContact: React.FC = () => {
               <MessageSquare size={26} />
             </div>
             <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-cyan-300 mb-0.5">
-                <Sparkles size={12} />
-                <span>Frontend Form Submissions</span>
-              </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Customer Contact Inquiries
+                Contact &amp; Enquiries
               </h1>
-              <p className="text-slate-300 text-xs sm:text-sm mt-0.5 font-normal">
-                Real-time leads received from the website Contact Us and Booking forms.
+              <p className="text-slate-300 text-xs sm:text-sm mt-1 font-normal">
+                Manage customer enquiries and follow-ups.
               </p>
             </div>
           </div>
@@ -168,11 +151,12 @@ const AdminContact: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. Stat Cards Row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-5">
+      {/* ── 2. Stat Cards Row (3 Cards Only) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        {/* Total Enquiries */}
         <div className="bg-gradient-to-br from-blue-50/90 via-sky-50/40 to-indigo-50/60 rounded-2xl p-5 border border-blue-200/80 shadow-2xs">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold text-blue-900">Total Inquiries</span>
+            <span className="text-xs font-bold text-blue-900">Total Enquiries</span>
             <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
               <MessageSquare size={18} />
             </div>
@@ -183,9 +167,10 @@ const AdminContact: React.FC = () => {
           </div>
         </div>
 
+        {/* New Enquiries */}
         <div className="bg-gradient-to-br from-rose-50/90 via-red-50/40 to-pink-50/60 rounded-2xl p-5 border border-rose-200/80 shadow-2xs">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold text-rose-900">New Requests</span>
+            <span className="text-xs font-bold text-rose-900">New Enquiries</span>
             <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-500/25">
               <Clock size={18} />
             </div>
@@ -196,22 +181,10 @@ const AdminContact: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/60 rounded-2xl p-5 border border-amber-200/80 shadow-2xs">
-          <div className="flex items-start justify-between">
-            <span className="text-xs font-bold text-amber-900">In Discussion</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/25">
-              <Phone size={18} />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-3xl font-black text-amber-950">{inProgressCount}</div>
-            <p className="text-[11px] text-amber-700 font-semibold mt-1">Under follow-up</p>
-          </div>
-        </div>
-
+        {/* Resolved Enquiries */}
         <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-green-50/60 rounded-2xl p-5 border border-emerald-200/80 shadow-2xs">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold text-emerald-900">Resolved / Closed</span>
+            <span className="text-xs font-bold text-emerald-900">Resolved Enquiries</span>
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
               <CheckCircle2 size={18} />
             </div>
@@ -232,7 +205,7 @@ const AdminContact: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by customer name, phone, email, or message..."
+            placeholder="Search by customer name, phone number, or email..."
             className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
           />
           {searchQuery && (
@@ -259,7 +232,7 @@ const AdminContact: React.FC = () => {
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/90'
                 }`}
               >
-                <span className="capitalize">{st === 'all' ? 'All Leads' : st}</span>
+                <span className="capitalize">{st === 'all' ? 'All' : st}</span>
               </button>
             );
           })}
@@ -295,7 +268,7 @@ const AdminContact: React.FC = () => {
                   <th className="px-6 py-4">Inquiry Message</th>
                   <th className="px-6 py-4 w-36">Status</th>
                   <th className="px-6 py-4 w-36">Date</th>
-                  <th className="px-6 py-4 text-right w-36">Quick Actions</th>
+                  <th className="px-6 py-4 text-right w-36">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -367,7 +340,6 @@ const AdminContact: React.FC = () => {
                         >
                           <option value="New">New</option>
                           <option value="Contacted">Contacted</option>
-                          <option value="In Progress">In Progress</option>
                           <option value="Resolved">Resolved</option>
                         </select>
                       </td>
@@ -383,7 +355,7 @@ const AdminContact: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Action buttons */}
+                      {/* Actions: Call, WhatsApp, Delete */}
                       <td
                         className="px-6 py-4 align-middle text-right"
                         onClick={(e) => e.stopPropagation()}
@@ -406,7 +378,16 @@ const AdminContact: React.FC = () => {
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* WhatsApp Action */}
+                            {/* Call */}
+                            <a
+                              href={`tel:${contact.phone}`}
+                              title="Call Phone"
+                              className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl border border-blue-200 transition-colors"
+                            >
+                              <Phone size={14} />
+                            </a>
+
+                            {/* WhatsApp */}
                             <a
                               href={`https://wa.me/91${contact.phone}?text=Hello%20${encodeURIComponent(
                                 contact.name
@@ -417,24 +398,6 @@ const AdminContact: React.FC = () => {
                               className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl border border-emerald-200 transition-colors"
                             >
                               <MessageCircle size={14} />
-                            </a>
-
-                            {/* Phone Call */}
-                            <a
-                              href={`tel:${contact.phone}`}
-                              title="Call Phone"
-                              className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-xl border border-blue-200 transition-colors"
-                            >
-                              <Phone size={14} />
-                            </a>
-
-                            {/* Email */}
-                            <a
-                              href={`mailto:${contact.email}?subject=Perfect%20Air%20Solution%20Response`}
-                              title="Send Email"
-                              className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-600 hover:text-white rounded-xl border border-purple-200 transition-colors"
-                            >
-                              <Mail size={14} />
                             </a>
 
                             {/* Delete */}
@@ -514,7 +477,7 @@ const AdminContact: React.FC = () => {
                     selectedInquiry.service
                   )}`}
                 >
-                  {selectedInquiry.service}
+                  {selectedInquiry.service || 'General Inquiry'}
                 </span>
               </div>
 
@@ -529,6 +492,13 @@ const AdminContact: React.FC = () => {
 
               <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                 <a
+                  href={`tel:${selectedInquiry.phone}`}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Phone size={15} />
+                  <span>Call</span>
+                </a>
+                <a
                   href={`https://wa.me/91${selectedInquiry.phone}?text=Hello%20${encodeURIComponent(
                     selectedInquiry.name
                   )},%20regarding%20your%20inquiry%20with%20Perfect%20Air%20Solution:`}
@@ -538,13 +508,6 @@ const AdminContact: React.FC = () => {
                 >
                   <MessageCircle size={15} />
                   <span>WhatsApp</span>
-                </a>
-                <a
-                  href={`tel:${selectedInquiry.phone}`}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Phone size={15} />
-                  <span>Call Now</span>
                 </a>
               </div>
             </div>
