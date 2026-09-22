@@ -215,9 +215,7 @@ const AdminGallery: React.FC = () => {
         <div className="bg-gradient-to-br from-blue-50/90 via-sky-50/40 to-indigo-50/60 rounded-2xl p-5 sm:p-6 border border-blue-200/80 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs sm:text-sm font-bold text-blue-900 block">Total Projects</span>
-              <span className="text-[11px] text-blue-600 font-semibold mt-0.5 block">Showcased on portal</span>
-            </div>
+              <span className="text-xs sm:text-sm font-bold text-blue-900 block">Total Projects</span>            </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
               <Images size={20} strokeWidth={2.2} />
             </div>
@@ -233,9 +231,7 @@ const AdminGallery: React.FC = () => {
         <div className="bg-gradient-to-br from-purple-50/90 via-fuchsia-50/30 to-violet-50/60 rounded-2xl p-5 sm:p-6 border border-purple-200/80 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs sm:text-sm font-bold text-purple-900 block">Categories</span>
-              <span className="text-[11px] text-purple-600 font-semibold mt-0.5 block">Project classifications</span>
-            </div>
+              <span className="text-xs sm:text-sm font-bold text-purple-900 block">Categories</span>            </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shadow-md shadow-purple-500/25">
               <Tag size={20} strokeWidth={2.2} />
             </div>
@@ -251,9 +247,7 @@ const AdminGallery: React.FC = () => {
         <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-green-50/60 rounded-2xl p-5 sm:p-6 border border-emerald-200/80 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs sm:text-sm font-bold text-emerald-900 block">Display Status</span>
-              <span className="text-[11px] text-emerald-600 font-semibold mt-0.5 block">Portfolio Photos</span>
-            </div>
+              <span className="text-xs sm:text-sm font-bold text-emerald-900 block">Display Status</span>            </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
               <CheckCircle2 size={20} strokeWidth={2.2} />
             </div>
