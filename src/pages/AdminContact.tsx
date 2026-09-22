@@ -138,16 +138,6 @@ const AdminContact: React.FC = () => {
               </p>
             </div>
           </div>
-
-          <a
-            href="/contact-us"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition-all self-start sm:self-auto"
-          >
-            <span>Live Contact Page</span>
-            <ExternalLink size={13} />
-          </a>
         </div>
       </div>
 

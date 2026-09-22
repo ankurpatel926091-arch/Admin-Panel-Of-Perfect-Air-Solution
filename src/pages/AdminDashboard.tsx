@@ -129,7 +129,7 @@ const AdminDashboard = () => {
       path: "/admin/gallery",
     },
     {
-      title: "Partner Brands",
+      title: "Brands",
       count: brands.length,
       loading: brandsLoading,
       subtext: "Authorized manufacturers",
@@ -166,12 +166,10 @@ const AdminDashboard = () => {
           </div>
 
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-widest text-cyan-300 mb-1">
-              ADMIN PORTAL
-            </div>
+          
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
               <span>Welcome back, Administrator</span>
-              <span>👋</span>
+              
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm mt-1 font-normal max-w-xl">
               Here's your website content, product catalog, and customer inquiry overview for today.
@@ -285,12 +283,15 @@ const AdminDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="text-right sm:text-right text-xs">
-                      <span className="text-slate-400 block text-[11px]">
-                        {b.createdAt || "Recent"}
-                      </span>
-                      <span className="text-[#0284C7] font-bold text-xs">
-                        Token {b._id || `T-${index + 1}`}
+                    <div className="text-right text-xs shrink-0">
+                      <span className="text-slate-400 font-medium text-[11px] block">
+                        {b.createdAt && !isNaN(new Date(b.createdAt).getTime())
+                          ? new Date(b.createdAt).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : b.createdAt || "Recent"}
                       </span>
                     </div>
                   </div>

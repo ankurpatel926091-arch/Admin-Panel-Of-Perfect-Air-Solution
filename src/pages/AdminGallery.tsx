@@ -17,6 +17,8 @@ import {
   Tag,
   CheckCircle2,
   ExternalLink,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -177,10 +179,6 @@ const AdminGallery: React.FC = () => {
               <Images size={26} />
             </div>
             <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-cyan-300 mb-0.5">
-                <Sparkles size={12} />
-                <span>Frontend Portfolio Sync</span>
-              </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Installation Gallery
               </h1>
@@ -243,7 +241,7 @@ const AdminGallery: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-purple-950">5 Systems</div>
+            <div className="text-3xl sm:text-4xl font-black text-purple-950">5 </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
               VRF &bull; Chiller &bull; AHU
             </span>
@@ -291,40 +289,37 @@ const AdminGallery: React.FC = () => {
           )}
         </div>
 
-        {/* Categories & View */}
-        <div className="flex items-center justify-between lg:justify-end gap-3 shrink-0 overflow-x-auto">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-            {CATEGORIES.map((cat) => {
-              const isSelected = selectedCategory === cat.id;
-              const count =
-                cat.id === 'all'
-                  ? gallery.length
-                  : gallery.filter((item: any) => item.category === cat.id).length;
+        {/* Category Dropdown (DDL) & View Toggle */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+          {/* Category Dropdown List (DDL) */}
+          <div className="relative min-w-[190px] sm:min-w-[230px]">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <Filter size={15} />
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all cursor-pointer appearance-none shadow-2xs"
+            >
+              {CATEGORIES.map((cat) => {
+                const count =
+                  cat.id === 'all'
+                    ? gallery.length
+                    : gallery.filter((item: any) => item.category === cat.id).length;
 
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-2xs ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-[#051B30] to-[#0D508D] text-white shadow-md'
-                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/90'
-                  }`}
-                >
-                  <span>{cat.label}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                return (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label} ({count})
+                  </option>
+                );
+              })}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <ChevronDown size={15} />
+            </div>
           </div>
 
-          <div className="h-6 w-[1px] bg-slate-200 hidden lg:block" />
+          <div className="h-6 w-[1px] bg-slate-200" />
 
           {/* View Toggle */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 shrink-0 border border-slate-200/80">

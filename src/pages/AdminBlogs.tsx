@@ -19,6 +19,8 @@ import {
   Calendar,
   BookOpen,
   ArrowUpRight,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
 
 /* ── Category Color Mapping ── */
@@ -164,11 +166,7 @@ const AdminBlogs = () => {
               <FileText size={26} />
             </div>
             <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-cyan-300 mb-0.5">
-                <Sparkles size={12} />
-                <span>Content Studio</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Blog Posts &amp; Guides
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm mt-0.5 font-normal">
@@ -196,9 +194,7 @@ const AdminBlogs = () => {
               <span className="text-xs sm:text-sm font-bold text-blue-900 block">
                 Total Articles
               </span>
-              <span className="text-[11px] text-blue-600 font-semibold mt-0.5 block">
-                Published on portal
-              </span>
+              
             </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25">
               <FileText size={20} strokeWidth={2.2} />
@@ -221,9 +217,7 @@ const AdminBlogs = () => {
               <span className="text-xs sm:text-sm font-bold text-purple-900 block">
                 Categories
               </span>
-              <span className="text-[11px] text-purple-600 font-semibold mt-0.5 block">
-                Active HVAC topics
-              </span>
+             
             </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25">
               <Layers size={20} strokeWidth={2.2} />
@@ -246,9 +240,7 @@ const AdminBlogs = () => {
               <span className="text-xs sm:text-sm font-bold text-emerald-900 block">
                 Visual Covers
               </span>
-              <span className="text-[11px] text-emerald-600 font-semibold mt-0.5 block">
-                Media featured posts
-              </span>
+            
             </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25">
               <ImageIcon size={20} strokeWidth={2.2} />
@@ -290,60 +282,34 @@ const AdminBlogs = () => {
           )}
         </div>
 
-        {/* Category Pills & View Switcher */}
-        <div className="flex items-center justify-between lg:justify-end gap-3 shrink-0 overflow-x-auto">
-          {/* Colorful Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-            {/* All Pill */}
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs flex items-center gap-1.5 ${
-                selectedCategory === 'all'
-                  ? 'bg-gradient-to-r from-[#051B30] to-[#0D508D] text-white shadow-md'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/90'
-              }`}
+        {/* Category Dropdown (DDL) & View Switcher */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+          {/* Category Dropdown List (DDL) */}
+          <div className="relative min-w-[190px] sm:min-w-[230px]">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <Filter size={15} />
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all cursor-pointer appearance-none shadow-2xs"
             >
-              <span>All Posts</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                  selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {blogs.length}
-              </span>
-            </button>
-
-            {/* Individual Colorful Category Pills */}
-            {categories.map((cat: any) => {
-              const theme = getCategoryTheme(cat);
-              const count = blogs.filter((b: any) => b.category === cat).length;
-              const isSelected = selectedCategory === cat;
-
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap border flex items-center gap-1.5 shadow-2xs ${
-                    isSelected
-                      ? `${theme.activeBg} border-transparent shadow-md`
-                      : `${theme.pillBg} ${theme.text} ${theme.border} ${theme.hover}`
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : theme.dot}`} />
-                  <span>{cat}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-white/80 text-slate-700'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+              <option value="all">All Posts ({blogs.length})</option>
+              {categories.map((cat: any) => {
+                const count = blogs.filter((b: any) => b.category === cat).length;
+                return (
+                  <option key={cat} value={cat}>
+                    {cat} ({count})
+                  </option>
+                );
+              })}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <ChevronDown size={15} />
+            </div>
           </div>
 
-          <div className="h-6 w-[1px] bg-slate-200 hidden lg:block" />
+          <div className="h-6 w-[1px] bg-slate-200" />
 
           {/* View Toggle */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 shrink-0 border border-slate-200/80">

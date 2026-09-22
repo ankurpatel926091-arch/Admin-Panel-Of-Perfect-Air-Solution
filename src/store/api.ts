@@ -101,17 +101,18 @@ export const {
 } = api;
 
 // Mock REST helpers for admin modals so admin actions work locally without error
-export const addBlogREST = async () => ({ message: "Success" });
-export const updateBlogREST = async () => ({ message: "Success" });
-export const buildBlogFormData = () => new FormData();
+export const addBlogREST = async (..._args: any[]) => ({ message: "Success" });
+export const updateBlogREST = async (..._args: any[]) => ({ message: "Success" });
+export const buildBlogFormData = (..._args: any[]) => new FormData();
 
-export const addBrandREST = async () => ({ message: "Success" });
-export const updateBrandREST = async () => ({ message: "Success" });
+export const addBrandREST = async (..._args: any[]) => ({ message: "Success" });
+export const updateBrandREST = async (..._args: any[]) => ({ message: "Success" });
 
-export const addServiceREST = async () => ({ message: "Success" });
-export const updateServiceREST = async () => ({ message: "Success" });
-export const buildServiceFormData = () => new FormData();
+export const addServiceREST = async (..._args: any[]) => ({ message: "Success" });
+export const updateServiceREST = async (..._args: any[]) => ({ message: "Success" });
+export const buildServiceFormData = (..._args: any[]) => new FormData();
 
-export const addProjectREST = async () => ({ message: "Success" });
-export const updateProjectREST = async () => ({ message: "Success" });
-export const buildProjectFormData = () => new FormData();
+export const addProjectREST = async (..._args: any[]) => ({ message: "Success" });
+export const updateProjectREST = async (..._args: any[]) => ({ message: "Success" });
+export const buildProjectFormData = (..._args: any[]) => new FormData();
+
