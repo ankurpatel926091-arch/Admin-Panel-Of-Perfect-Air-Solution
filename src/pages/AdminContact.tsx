@@ -63,7 +63,7 @@ const AdminContact: React.FC = () => {
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);

@@ -71,7 +71,7 @@ const AdminGallery: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [view, setView] = useState<'grid' | 'table'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 8;
 
   useEffect(() => {
     setCurrentPage(1);

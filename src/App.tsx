@@ -14,6 +14,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminBlogs from "./pages/AdminBlogs";
+import AdminBlogEditor from "./pages/AdminBlogEditor";
 import AdminServices from "./pages/AdminServices";
 import AdminBrands from "./pages/AdminBrands";
 import AdminGallery from "./pages/AdminGallery";
@@ -41,6 +42,9 @@ const App: React.FC = () => (
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="blogs" element={<AdminBlogs />} />
+              <Route path="blogs/create" element={<AdminBlogEditor />} />
+              <Route path="blogs/new" element={<Navigate to="/admin/blogs/create" replace />} />
+              <Route path="blogs/edit/:id" element={<AdminBlogEditor />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="brands" element={<AdminBrands />} />
               <Route path="gallery" element={<AdminGallery />} />

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGetBlogsQuery, useDeleteBlogMutation } from '@/store/api';
 import { toast } from 'sonner';
-import AdminBlogModal from './AdminBlogModal';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
 import {
@@ -87,10 +87,9 @@ const getCategoryTheme = (category: string) => {
 };
 
 const AdminBlogs = () => {
+  const navigate = useNavigate();
   const { data: blogs = [], isLoading } = useGetBlogsQuery();
   const [deleteBlog] = useDeleteBlogMutation();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedBlog, setSelectedBlog] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [view, setView] = useState<'table' | 'grid'>('table');
@@ -106,13 +105,11 @@ const AdminBlogs = () => {
   }, [searchQuery, selectedCategory]);
 
   const handleAdd = () => {
-    setSelectedBlog(null);
-    setIsModalOpen(true);
+    navigate('/admin/blogs/create');
   };
 
   const handleEdit = (blog: any) => {
-    setSelectedBlog(blog);
-    setIsModalOpen(true);
+    navigate(`/admin/blogs/edit/${blog._id || blog.id}`);
   };
 
   const handleDeleteConfirm = async (id: string) => {
@@ -629,12 +626,6 @@ const AdminBlogs = () => {
           />
         </div>
       </div>
-
-      <AdminBlogModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        blog={selectedBlog}
-      />
     </div>
   );
 };
