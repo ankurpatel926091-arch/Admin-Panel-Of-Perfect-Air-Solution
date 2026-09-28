@@ -4,6 +4,7 @@ import { useGetBlogsQuery, useDeleteBlogMutation } from '@/store/api';
 import { toast } from 'sonner';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
+import useDebounce from '@/hooks/useDebounce';
 import {
   Pencil,
   Trash2,
@@ -23,68 +24,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
-/* ── Category Color Mapping ── */
-const getCategoryTheme = (category: string) => {
-  const cat = (category || '').toLowerCase();
-  if (cat.includes('tech')) {
-    return {
-      pillBg: 'bg-blue-50',
-      text: 'text-blue-700',
-      border: 'border-blue-200',
-      dot: 'bg-blue-500',
-      activeBg: 'bg-blue-600 text-white',
-      hover: 'hover:bg-blue-100',
-    };
-  }
-  if (cat.includes('maint')) {
-    return {
-      pillBg: 'bg-amber-50',
-      text: 'text-amber-800',
-      border: 'border-amber-200',
-      dot: 'bg-amber-500',
-      activeBg: 'bg-amber-600 text-white',
-      hover: 'hover:bg-amber-100',
-    };
-  }
-  if (cat.includes('guide')) {
-    return {
-      pillBg: 'bg-emerald-50',
-      text: 'text-emerald-700',
-      border: 'border-emerald-200',
-      dot: 'bg-emerald-500',
-      activeBg: 'bg-emerald-600 text-white',
-      hover: 'hover:bg-emerald-100',
-    };
-  }
-  if (cat.includes('eng')) {
-    return {
-      pillBg: 'bg-purple-50',
-      text: 'text-purple-700',
-      border: 'border-purple-200',
-      dot: 'bg-purple-500',
-      activeBg: 'bg-purple-600 text-white',
-      hover: 'hover:bg-purple-100',
-    };
-  }
-  if (cat.includes('health')) {
-    return {
-      pillBg: 'bg-rose-50',
-      text: 'text-rose-700',
-      border: 'border-rose-200',
-      dot: 'bg-rose-500',
-      activeBg: 'bg-rose-600 text-white',
-      hover: 'hover:bg-rose-100',
-    };
-  }
-  return {
-    pillBg: 'bg-cyan-50',
-    text: 'text-cyan-700',
-    border: 'border-cyan-200',
-    dot: 'bg-cyan-500',
-    activeBg: 'bg-cyan-600 text-white',
-    hover: 'hover:bg-cyan-100',
-  };
-};
+
 
 const AdminBlogs = () => {
   const navigate = useNavigate();
@@ -94,15 +34,15 @@ const AdminBlogs = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const debouncedSearch = useDebounce(searchQuery, 500);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 6;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory]);
+  }, [debouncedSearch]);
 
   const handleAdd = () => {
     navigate('/admin/blogs/create');
@@ -125,23 +65,14 @@ const AdminBlogs = () => {
     }
   };
 
-  const categories = useMemo(() => {
-    return Array.from(new Set(blogs.map((b: any) => b.category).filter(Boolean)));
-  }, [blogs]);
-
   const filteredBlogs = useMemo(() => {
     return blogs.filter((blog: any) => {
-      const matchesSearch =
-        searchQuery.trim() === '' ||
-        blog.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        blog.category?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesCategory =
-        selectedCategory === 'all' || blog.category === selectedCategory;
-
-      return matchesSearch && matchesCategory;
+      return (
+        debouncedSearch.trim() === '' ||
+        blog.title?.toLowerCase().includes(debouncedSearch.toLowerCase())
+      );
     });
-  }, [blogs, searchQuery, selectedCategory]);
+  }, [blogs, debouncedSearch]);
 
   const paginatedBlogs = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -212,20 +143,19 @@ const AdminBlogs = () => {
           <div className="flex items-start justify-between gap-3">
             <div>
               <span className="text-xs sm:text-sm font-bold text-purple-900 block">
-                Categories
+                Published
               </span>
-             
             </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25">
-              <Layers size={20} strokeWidth={2.2} />
+              <Sparkles size={20} strokeWidth={2.2} />
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-purple-950 tracking-tight leading-none">
-              {categories.length}
+              {blogs.filter((b: any) => b.isActive !== false).length}
             </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
-              Categories
+              Active
             </span>
           </div>
         </div>
@@ -266,7 +196,7 @@ const AdminBlogs = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search articles by title, category, or keyword..."
+            placeholder="Search articles by title or keyword..."
             className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
           />
           {searchQuery && (
@@ -279,61 +209,8 @@ const AdminBlogs = () => {
           )}
         </div>
 
-        {/* Category Dropdown (DDL) & View Switcher */}
-        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-          {/* Category Dropdown List (DDL) */}
-          <div className="relative min-w-[190px] sm:min-w-[230px]">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-              <Filter size={15} />
-            </div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all cursor-pointer appearance-none shadow-2xs"
-            >
-              <option value="all">All Posts ({blogs.length})</option>
-              {categories.map((cat: any) => {
-                const count = blogs.filter((b: any) => b.category === cat).length;
-                return (
-                  <option key={cat} value={cat}>
-                    {cat} ({count})
-                  </option>
-                );
-              })}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-              <ChevronDown size={15} />
-            </div>
-          </div>
-
-          <div className="h-6 w-[1px] bg-slate-200" />
-
-          {/* View Toggle */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 shrink-0 border border-slate-200/80">
-            <button
-              onClick={() => setView('table')}
-              title="Table View"
-              className={`p-2 rounded-lg transition-all cursor-pointer ${
-                view === 'table'
-                  ? 'bg-gradient-to-r from-[#0284C7] to-[#0369A1] text-white shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <List size={16} />
-            </button>
-            <button
-              onClick={() => setView('grid')}
-              title="Grid View"
-              className={`p-2 rounded-lg transition-all cursor-pointer ${
-                view === 'grid'
-                  ? 'bg-gradient-to-r from-[#0284C7] to-[#0369A1] text-white shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid size={16} />
-            </button>
-          </div>
-        </div>
+        {/* View Switcher */}
+        
       </div>
 
       {/* ── 4. Main Content Container ── */}
@@ -352,15 +229,14 @@ const AdminBlogs = () => {
             </div>
             <h3 className="text-base font-extrabold text-[#051B30]">No blog posts found</h3>
             <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
-              {searchQuery || selectedCategory !== 'all'
+              {searchQuery
                 ? 'No posts matched your current search filters.'
                 : 'Start publishing HVAC insights, tips, and updates for your audience.'}
             </p>
-            {searchQuery || selectedCategory !== 'all' ? (
+            {searchQuery ? (
               <button
                 onClick={() => {
                   setSearchQuery('');
-                  setSelectedCategory('all');
                 }}
                 className="mt-2 text-xs font-bold text-[#0284C7] hover:underline cursor-pointer"
               >
@@ -384,17 +260,16 @@ const AdminBlogs = () => {
                 <tr className="bg-gradient-to-r from-slate-50 via-sky-50/40 to-slate-50 border-b border-slate-200/90 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                   <th className="px-6 py-4 w-20">Cover</th>
                   <th className="px-6 py-4">Title &amp; Meta</th>
-                  <th className="px-6 py-4">Category</th>
                   <th className="px-6 py-4">Content Preview</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginatedBlogs.map((blog: any) => {
-                  const preview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
+                  const rawPreview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
+                  const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                   const isConfirming = confirmDeleteId === blog._id;
                   const isDeleting = deletingId === blog._id;
-                  const catTheme = getCategoryTheme(blog.category);
 
                   return (
                     <tr
@@ -406,7 +281,7 @@ const AdminBlogs = () => {
                         {blog.image ? (
                           <div className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200/90 shadow-sm shrink-0 group-hover:scale-105 transition-transform">
                             <img
-                              src={blog.image}
+                              src={typeof blog.image === 'object' ? blog.image?.url : blog.image}
                               alt={blog.title}
                               className="w-full h-full object-cover"
                             />
@@ -424,33 +299,17 @@ const AdminBlogs = () => {
                           {blog.title}
                         </p>
                         <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-400 font-medium">
-                          <span className="text-slate-500 font-semibold">
-                            {Array.isArray(blog.content) ? blog.content.length : 1} paragraphs
-                          </span>
                           {blog.createdAt && (
-                            <>
-                              <span>•</span>
-                              <span className="flex items-center gap-1 text-slate-400">
-                                <Calendar size={11} />
-                                {new Date(blog.createdAt).toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                            </>
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Calendar size={11} />
+                              {new Date(blog.createdAt).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </span>
                           )}
                         </div>
-                      </td>
-
-                      {/* Colorful Category Tag */}
-                      <td className="px-6 py-4 align-middle">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-2xs ${catTheme.pillBg} ${catTheme.text} ${catTheme.border}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${catTheme.dot}`} />
-                          <span>{blog.category || 'General'}</span>
-                        </span>
                       </td>
 
                       {/* Preview Snippet */}
@@ -508,10 +367,10 @@ const AdminBlogs = () => {
           /* ── Colorful Grid View ── */
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {paginatedBlogs.map((blog: any) => {
-              const preview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
+              const rawPreview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
+              const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
               const isConfirming = confirmDeleteId === blog._id;
               const isDeleting = deletingId === blog._id;
-              const catTheme = getCategoryTheme(blog.category);
 
               return (
                 <div
@@ -523,7 +382,7 @@ const AdminBlogs = () => {
                     <div className="h-44 bg-slate-100 overflow-hidden relative">
                       {blog.image ? (
                         <img
-                          src={blog.image}
+                          src={typeof blog.image === 'object' ? blog.image?.url : blog.image}
                           alt={blog.title}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
@@ -532,12 +391,6 @@ const AdminBlogs = () => {
                           <FileText size={32} />
                         </div>
                       )}
-                      <span
-                        className={`absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-extrabold border shadow-md flex items-center gap-1.5 backdrop-blur-md ${catTheme.pillBg}/90 ${catTheme.text} ${catTheme.border}`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${catTheme.dot}`} />
-                        <span>{blog.category || 'General'}</span>
-                      </span>
                     </div>
 
                     {/* Content Body */}
@@ -554,7 +407,13 @@ const AdminBlogs = () => {
                   {/* Card Bottom Bar */}
                   <div className="px-5 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-400">
-                      {Array.isArray(blog.content) ? blog.content.length : 1} paragraphs
+                      {blog.createdAt
+                        ? new Date(blog.createdAt).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : 'Article'}
                     </span>
 
                     {isConfirming ? (

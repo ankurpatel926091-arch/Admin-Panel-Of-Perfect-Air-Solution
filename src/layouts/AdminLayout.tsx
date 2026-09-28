@@ -15,6 +15,7 @@ import {
   X,
   ChevronDown,
   Images,
+  Layers,
   MessageSquare,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
@@ -56,6 +57,7 @@ const AdminLayout = () => {
     { label: "Blogs", path: "/admin/blogs", icon: FileText },
     // { label: "Services", path: "/admin/services", icon: Briefcase },
     { label: "Brands", path: "/admin/brands", icon: Tags },
+    { label: "Gallery Categories", path: "/admin/gallery-categories", icon: Layers },
     { label: "Gallery", path: "/admin/gallery", icon: Images },
     { label: "Contact", path: "/admin/contacts", icon: MessageSquare },
   ];

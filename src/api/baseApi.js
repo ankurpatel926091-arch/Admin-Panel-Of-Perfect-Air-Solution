@@ -10,7 +10,7 @@ const baseApi = axios.create({
 
 baseApi.interceptors.request.use(
   (config) => {
-    const token = Cookies.get("perfectAirAdminToken");
+    const token = Cookies.get("perfectAirAdminToken") || localStorage.getItem("adminToken");
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

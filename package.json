@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-react": "^11.2.0",
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -44,7 +45,9 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@reduxjs/toolkit": "^2.11.2",
     "@tanstack/react-query": "^5.83.0",
+    "axios": "^1.20.0",
     "caniuse-lite": "^1.0.30001810",
+    "ckeditor5": "^48.5.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -53,6 +56,7 @@
     "framer-motion": "^11.18.2",
     "gsap": "^3.14.2",
     "input-otp": "^1.4.2",
+    "js-cookie": "^3.0.8",
     "jspdf": "^4.2.0",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
@@ -66,6 +70,7 @@
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.4",
     "sonner": "^1.7.4",
+    "sweetalert2": "^11.26.25",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",

@@ -1,5 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useGetGalleryQuery, useDeleteGalleryMutation } from '@/store/api';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  createGalleryAPI,
+  getGalleryAPI,
+  deleteGalleryAPI,
+  updateGalleryAPI,
+  toggleGalleryStatusAPI,
+} from '@/api/gallery.api';
+import { getGalleryCategories } from '@/api/galleryCategory.api';
 import { toast } from 'sonner';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
@@ -7,28 +14,24 @@ import {
   Images,
   Plus,
   Trash2,
+  Pencil,
   Search,
   X,
   ChevronLeft,
   ChevronRight,
-  LayoutGrid,
-  List,
   Sparkles,
   Tag,
   CheckCircle2,
   ExternalLink,
   Filter,
   ChevronDown,
+  UploadCloud,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Projects' },
-  { id: 'commercial', label: 'Commercial' },
-  { id: 'vrf', label: 'VRF / VRV System' },
-  { id: 'ductable', label: 'Ductable System' },
-  { id: 'maintenance', label: 'AHU & Maintenance' },
-  { id: 'residential', label: 'Residential' },
 ];
 
 const getCategoryBadge = (category: string) => {
@@ -64,41 +67,225 @@ const getCategoryBadge = (category: string) => {
 };
 
 const AdminGallery: React.FC = () => {
-  const { data: gallery = [], isLoading } = useGetGalleryQuery();
-  const [deleteGallery] = useDeleteGalleryMutation();
+  const [galleryList, setGalleryList] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<{ _id: string; title: string; slug?: string; isActive?: boolean }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const refreshCategories = async () => {
+    try {
+      const catRes = await getGalleryCategories();
+      const catList = catRes?.galleryCategories || catRes?.categories || [];
+      if (Array.isArray(catList)) {
+        setDbCategories(catList);
+      }
+    } catch (err) {
+      console.error('Failed to refresh categories:', err);
+    }
+  };
+
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [view, setView] = useState<'grid' | 'table'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedCategory, searchQuery]);
+  // Status Counts
+  const activeCount = useMemo(() => {
+    return galleryList.filter((item: any) => item.isActive !== false).length;
+  }, [galleryList]);
 
-  // Modal State
+  const inactiveCount = useMemo(() => {
+    return galleryList.filter((item: any) => item.isActive === false).length;
+  }, [galleryList]);
+
+  const activePercentage = useMemo(() => {
+    if (galleryList.length === 0) return 0;
+    return Math.round((activeCount / galleryList.length) * 100);
+  }, [galleryList.length, activeCount]);
+
+  // Local File Upload & Modal State
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [modalIsActive, setModalIsActive] = useState<boolean>(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  // Form State - Only Category & Image needed for pure photo gallery
-  const [formData, setFormData] = useState({
-    category: 'commercial',
-    image: '',
-  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [modalCategory, setModalCategory] = useState<string>('commercial');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getImageUrl = (item: any): string => {
+    if (!item) return '';
+    if (typeof item.image === 'string') return item.image;
+    if (item.image && typeof item.image === 'object' && item.image.url) {
+      return item.image.url;
+    }
+    return '';
+  };
+
+  const getItemCategory = (item: any): string => {
+    if (!item) return '';
+    if (item.galleryCategory && typeof item.galleryCategory === 'object') {
+      return item.galleryCategory.title || item.galleryCategory.name || '';
+    }
+    return item.galleryCategory || item.category || '';
+  };
+
+  const fetchAllData = async () => {
+    try {
+      setIsLoading(true);
+      const [catRes, galRes] = await Promise.allSettled([
+        getGalleryCategories(),
+        getGalleryAPI(),
+      ]);
+
+      if (catRes.status === 'fulfilled') {
+        const catList = catRes.value?.galleryCategories || catRes.value?.categories || [];
+        if (Array.isArray(catList)) {
+          setDbCategories(catList);
+        }
+      }
+
+      if (galRes.status === 'fulfilled') {
+        const galList = galRes.value?.gallery || [];
+        if (Array.isArray(galList)) {
+          setGalleryList(galList);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load gallery data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Run ONCE on mount only (prevent StrictMode double call in dev)
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    fetchAllData();
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, statusFilter]);
+
+  const applySelectedFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (JPG, PNG, WEBP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      applySelectedFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      applySelectedFile(file);
+    }
+  };
+
+  const removeSelectedFile = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(null);
+    setPreviewUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleOpenAdd = () => {
-    setFormData({
-      category: 'commercial',
-      image: '',
-    });
+    refreshCategories();
+    setEditingItem(null);
+    removeSelectedFile();
+    const firstActive = dbCategories.find((cat: any) => cat.isActive !== false);
+    setModalCategory(firstActive?.title || '');
+    setModalIsActive(true);
     setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (item: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    refreshCategories();
+    setEditingItem(item);
+    setSelectedFile(null);
+    setPreviewUrl(getImageUrl(item));
+    const currentCat = getItemCategory(item);
+    const firstActive = dbCategories.find((cat: any) => cat.isActive !== false);
+    setModalCategory(currentCat || firstActive?.title || '');
+    setModalIsActive(item.isActive !== false);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingItem(null);
+    removeSelectedFile();
+  };
+
+  const handleToggleStatus = async (item: any, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const id = item._id || item.id;
+    if (!id) return;
+    const currentStatus = item.isActive !== false;
+    const newStatus = !currentStatus;
+
+    // Optimistic UI update
+    setGalleryList((prev) =>
+      prev.map((it) => ((it._id || it.id) === id ? { ...it, isActive: newStatus } : it))
+    );
+
+    try {
+      await toggleGalleryStatusAPI(id);
+      toast.success(`Photo marked as ${newStatus ? 'Active' : 'Inactive'}`);
+    } catch (err: any) {
+      // Revert on error
+      setGalleryList((prev) =>
+        prev.map((it) => ((it._id || it.id) === id ? { ...it, isActive: currentStatus } : it))
+      );
+      toast.error(err?.response?.data?.message || 'Failed to update photo status');
+    }
   };
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteGallery(id).unwrap();
+      await deleteGalleryAPI(id);
+      setGalleryList((prev) => prev.filter((item) => (item._id || item.id) !== id));
       toast.success('Gallery item deleted successfully');
     } catch {
       toast.error('Failed to delete gallery item');
@@ -107,27 +294,134 @@ const AdminGallery: React.FC = () => {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.image.trim()) {
-      toast.error('Image URL is required');
+    if (!editingItem && !selectedFile) {
+      toast.error('Please choose a photo from your computer');
       return;
     }
-    toast.success('New gallery photo added');
-    setIsModalOpen(false);
+
+    if (!modalCategory) {
+      toast.error('Please select an active category');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const fd = new FormData();
+      fd.append('galleryCategory', modalCategory);
+      fd.append('isActive', String(modalIsActive));
+      if (selectedFile) {
+        fd.append('image', selectedFile);
+      }
+
+      if (editingItem) {
+        const id = editingItem._id || editingItem.id;
+        await updateGalleryAPI(id, fd);
+        toast.success('Gallery photo updated successfully!');
+      } else {
+        await createGalleryAPI(fd);
+        toast.success('New gallery photo uploaded successfully!');
+      }
+
+      handleCloseModal();
+
+      // Refresh gallery list
+      const galRes = await getGalleryAPI();
+      if (galRes?.gallery && Array.isArray(galRes.gallery)) {
+        setGalleryList(galRes.gallery);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || 'Failed to save photo');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const filteredItems = useMemo(() => {
-    return gallery.filter((item: any) => {
-      const matchesCategory =
-        selectedCategory === 'all' || item.category === selectedCategory;
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        q === '' ||
-        item.category?.toLowerCase().includes(q);
-      return matchesCategory && matchesSearch;
+  // Only active categories for photo upload / edit modal
+  const uploadCategoryOptions = useMemo(() => {
+    const activeCats: { _id: string; title: string; isInactive?: boolean }[] = [];
+    const seen = new Set<string>();
+
+    dbCategories
+      .filter((cat: any) => cat.isActive !== false)
+      .forEach((cat: any) => {
+        const cleanTitle = (cat.title || '').trim();
+        if (cleanTitle && !seen.has(cleanTitle.toLowerCase())) {
+          seen.add(cleanTitle.toLowerCase());
+          activeCats.push({ _id: cat._id || cat.title, title: cleanTitle });
+        }
+      });
+
+    // If editing an existing photo whose category was set to something that is now inactive,
+    // show it with an indicator so it doesn't break
+    if (editingItem) {
+      const currentCatName = getItemCategory(editingItem).trim();
+      if (currentCatName && !seen.has(currentCatName.toLowerCase())) {
+        return [
+          { _id: 'current_inactive', title: currentCatName, isInactive: true },
+          ...activeCats,
+        ];
+      }
+    }
+
+    return activeCats;
+  }, [dbCategories, editingItem]);
+
+  // Keep modalCategory valid when active categories change
+  useEffect(() => {
+    if (isModalOpen && !editingItem && uploadCategoryOptions.length > 0) {
+      const isSelectedValid = uploadCategoryOptions.some(
+        (c) => c.title.toLowerCase() === modalCategory.toLowerCase()
+      );
+      if (!isSelectedValid) {
+        setModalCategory(uploadCategoryOptions[0].title);
+      }
+    }
+  }, [uploadCategoryOptions, isModalOpen, editingItem, modalCategory]);
+
+  const categoryOptions = useMemo(() => {
+    const list: { id: string; label: string }[] = [{ id: 'all', label: 'All Projects' }];
+    const seen = new Set<string>();
+
+    dbCategories.forEach((cat: any) => {
+      const title = (cat.title || '').trim();
+      if (title && !seen.has(title.toLowerCase())) {
+        seen.add(title.toLowerCase());
+        list.push({ id: title.toLowerCase(), label: title });
+      }
     });
-  }, [gallery, selectedCategory, searchQuery]);
+
+    galleryList.forEach((item: any) => {
+      const catName = getItemCategory(item).trim();
+      if (catName && !seen.has(catName.toLowerCase())) {
+        seen.add(catName.toLowerCase());
+        list.push({ id: catName.toLowerCase(), label: catName });
+      }
+    });
+
+    return list;
+  }, [dbCategories, galleryList]);
+
+  const filteredItems = useMemo(() => {
+    return galleryList.filter((item: any) => {
+      const itemCat = getItemCategory(item).toLowerCase();
+      const matchesCategory =
+        selectedCategory === 'all' ||
+        itemCat === selectedCategory.toLowerCase() ||
+        itemCat.includes(selectedCategory.toLowerCase()) ||
+        selectedCategory.toLowerCase().includes(itemCat);
+
+      const isActive = item.isActive !== false;
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && isActive) ||
+        (statusFilter === 'inactive' && !isActive);
+
+      return matchesCategory && matchesStatus;
+    });
+  }, [galleryList, selectedCategory, statusFilter]);
 
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -189,15 +483,6 @@ const AdminGallery: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 self-start sm:self-auto">
-            <a
-              href="/gallery"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition-all"
-            >
-              <span>View Frontend</span>
-              <ExternalLink size={13} />
-            </a>
 
             <button
               onClick={handleOpenAdd}
@@ -221,7 +506,7 @@ const AdminGallery: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-blue-950">{gallery.length}</div>
+            <div className="text-3xl sm:text-4xl font-black text-blue-950">{galleryList.length}</div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
               Live Photos
             </span>
@@ -237,9 +522,11 @@ const AdminGallery: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-purple-950">5 </div>
+            <div className="text-3xl sm:text-4xl font-black text-purple-950">
+              {dbCategories.filter((c: any) => c.isActive !== false).length}
+            </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
-              VRF &bull; Chiller &bull; AHU
+              Active Categories
             </span>
           </div>
         </div>
@@ -253,39 +540,88 @@ const AdminGallery: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-emerald-950">100%</div>
+            <div className="text-3xl sm:text-4xl font-black text-emerald-950">{activePercentage}%</div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-              Active &amp; Live
+              {activeCount} Active &bull; {inactiveCount} Inactive
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── 3. Search & Filter Bar ── */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
-        {/* Search Input */}
-        <div className="relative flex-1 min-w-[240px]">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search photos by category..."
-            className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+      {/* ── 3. Status Filter (Active / Inactive) & Category Dropdown ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
+        {/* Active & Inactive Status Filter */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              statusFilter === 'all'
+                ? 'bg-[#051B30] text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>All Projects</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                statusFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
             >
-              <X size={14} />
-            </button>
-          )}
+              {galleryList.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('active')}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              statusFilter === 'active'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/70'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                statusFilter === 'active' ? 'bg-white animate-pulse' : 'bg-emerald-500'
+              }`}
+            />
+            <span>Active</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
+              {activeCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('inactive')}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              statusFilter === 'inactive'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 border border-slate-200/70'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                statusFilter === 'inactive' ? 'bg-white' : 'bg-slate-400'
+              }`}
+            />
+            <span>Inactive</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                statusFilter === 'inactive' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {inactiveCount}
+            </span>
+          </button>
         </div>
 
-        {/* Category Dropdown (DDL) & View Toggle */}
+        {/* Category Dropdown (DDL) */}
         <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-          {/* Category Dropdown List (DDL) */}
           <div className="relative min-w-[190px] sm:min-w-[230px]">
             <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
               <Filter size={15} />
@@ -295,11 +631,18 @@ const AdminGallery: React.FC = () => {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all cursor-pointer appearance-none shadow-2xs"
             >
-              {CATEGORIES.map((cat) => {
+              {categoryOptions.map((cat) => {
                 const count =
                   cat.id === 'all'
-                    ? gallery.length
-                    : gallery.filter((item: any) => item.category === cat.id).length;
+                    ? galleryList.length
+                    : galleryList.filter((item: any) => {
+                        const itCat = getItemCategory(item).toLowerCase();
+                        return (
+                          itCat === cat.id.toLowerCase() ||
+                          itCat === cat.label.toLowerCase() ||
+                          itCat.includes(cat.id.toLowerCase())
+                        );
+                      }).length;
 
                 return (
                   <option key={cat.id} value={cat.id}>
@@ -311,30 +654,6 @@ const AdminGallery: React.FC = () => {
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
               <ChevronDown size={15} />
             </div>
-          </div>
-
-          <div className="h-6 w-[1px] bg-slate-200" />
-
-          {/* View Toggle */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 shrink-0 border border-slate-200/80">
-            <button
-              onClick={() => setView('grid')}
-              title="Grid View"
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                view === 'grid' ? 'bg-[#0284C7] text-white shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid size={16} />
-            </button>
-            <button
-              onClick={() => setView('table')}
-              title="Table View"
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                view === 'table' ? 'bg-[#0284C7] text-white shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <List size={16} />
-            </button>
           </div>
         </div>
       </div>
@@ -352,8 +671,8 @@ const AdminGallery: React.FC = () => {
           </div>
           <h3 className="text-base font-extrabold text-[#051B30]">No gallery items found</h3>
           <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
-            {searchQuery || selectedCategory !== 'all'
-              ? 'Try adjusting your search terms or category filter.'
+            {statusFilter !== 'all' || selectedCategory !== 'all'
+              ? `No ${statusFilter !== 'all' ? statusFilter : ''} photos match your current filter. Try selecting 'All Projects' or switching status.`
               : 'Add photo installations to populate the frontend gallery.'}
           </p>
           <button
@@ -366,147 +685,123 @@ const AdminGallery: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {view === 'grid' ? (
-            /* ── Pure Photo Grid View (No text, pure photos) ── */
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-              {paginatedItems.map((item: any, index: number) => {
-                const globalIndex = (currentPage - 1) * itemsPerPage + index;
-                const isConfirming = confirmDeleteId === item._id;
+          {/* ── Pure Photo Grid View (Full uncropped photos) ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+            {paginatedItems.map((item: any, index: number) => {
+              const globalIndex = (currentPage - 1) * itemsPerPage + index;
+              const itemId = item._id || item.id || `gallery-${index}`;
+              const isConfirming = confirmDeleteId === itemId;
+              const imgUrl = getImageUrl(item);
+              const itemCat = getItemCategory(item);
 
-                return (
+              const isItemActive = item.isActive !== false;
+
+              return (
+                <div
+                  key={itemId}
+                  onClick={() => setPreviewIndex(globalIndex)}
+                  title="Click to view photo"
+                  className={`group relative aspect-[4/3] w-full rounded-2xl border shadow-2xs hover:shadow-xl transition-all duration-300 overflow-hidden bg-slate-950 flex items-center justify-center cursor-pointer ${
+                    !isItemActive
+                      ? 'border-slate-500/40 opacity-80 hover:opacity-100 hover:border-slate-400'
+                      : 'border-slate-200/90 hover:border-[#0284C7]/60'
+                  }`}
+                >
+                  {/* Status Toggle Switch at Top Left */}
                   <div
-                    key={item._id}
-                    onClick={() => setPreviewIndex(globalIndex)}
-                    title="Click to view photo"
-                    className="group relative aspect-[4/3] rounded-2xl border border-slate-200/90 hover:border-[#0284C7]/60 shadow-2xs hover:shadow-xl transition-all duration-300 overflow-hidden bg-slate-100 cursor-pointer"
+                    className="absolute top-2.5 left-2.5 z-20 pointer-events-auto rounded-full shadow-md"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {/* 100% Pure Photo */}
-                    <img
-                      src={item.image}
-                      alt="HVAC Installation"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    <ToggleSwitch
+                      size="sm"
+                      checked={isItemActive}
+                      onChange={() => handleToggleStatus(item)}
+                      ariaLabel="Toggle photo active status"
                     />
-
-                    {/* Subtle Hover Action Overlay */}
-                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-start justify-end p-3 pointer-events-none">
-                      {isConfirming ? (
-                        <div 
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-lg shrink-0 pointer-events-auto"
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(item._id);
-                            }}
-                            className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-rose-700"
-                          >
-                            Delete
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setConfirmDeleteId(null);
-                            }}
-                            className="px-2 py-0.5 text-slate-600 text-xs font-semibold rounded-lg cursor-pointer hover:text-slate-900"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div 
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center shrink-0 pointer-events-auto"
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setConfirmDeleteId(item._id);
-                            }}
-                            className="p-2 bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700 rounded-xl shadow-md transition-all cursor-pointer"
-                            title="Delete Photo"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            /* ── Table View ── */
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-slate-50 via-sky-50/40 to-slate-50 border-b border-slate-200/90 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                      <th className="px-6 py-4 w-28">Photo</th>
-                      <th className="px-6 py-4">System Category</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {paginatedItems.map((item: any, index: number) => {
-                      const globalIndex = (currentPage - 1) * itemsPerPage + index;
-                      const badge = getCategoryBadge(item.category);
-                      const isConfirming = confirmDeleteId === item._id;
 
-                      return (
-                        <tr key={item._id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="px-6 py-4 align-middle">
-                            <div 
-                              onClick={() => setPreviewIndex(globalIndex)}
-                              title="Click to view photo"
-                              className="w-16 h-14 rounded-xl overflow-hidden border border-slate-200 shadow-sm shrink-0 cursor-pointer hover:opacity-80 transition-opacity hover:ring-2 hover:ring-[#0284C7]"
-                            >
-                              <img src={item.image} alt="Gallery Photo" className="w-full h-full object-cover" />
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-middle">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${badge.bg}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                              <span className="capitalize">{item.category}</span>
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 align-middle text-right">
-                            {isConfirming ? (
-                              <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 rounded-xl px-2.5 py-1">
-                                <span className="text-xs text-rose-600 font-bold">Delete?</span>
-                                <button
-                                  onClick={() => handleDelete(item._id)}
-                                  className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded"
-                                >
-                                  Yes
-                                </button>
-                                <button
-                                  onClick={() => setConfirmDeleteId(null)}
-                                  className="px-2 py-0.5 text-slate-500 text-xs font-semibold"
-                                >
-                                  No
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-end">
-                                <button
-                                  onClick={() => setConfirmDeleteId(item._id)}
-                                  className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl border border-rose-200 transition-colors cursor-pointer"
-                                  title="Delete Photo"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+                  {/* Ambient Blurred Backdrop - Fills exact card frame so card size is always identical */}
+                  <img
+                    src={imgUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-xl opacity-40 scale-110 pointer-events-none select-none"
+                  />
+
+                  {/* 100% Full Uncropped Photo - No part is cut or cropped */}
+                  <img
+                    src={imgUrl}
+                    alt="HVAC Installation"
+                    className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain p-2 transition-transform duration-300 group-hover:scale-105 drop-shadow-md select-none"
+                  />
+
+                  {/* Gradient Overlay for Text Readability */}
+                  {itemCat && (
+                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none z-20" />
+                  )}
+
+                  {/* Category Badge at Bottom Left */}
+                  {itemCat && (
+                    <div className="absolute bottom-2.5 left-2.5 z-20 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold pointer-events-none border border-white/20 truncate max-w-[85%] shadow-sm">
+                      {itemCat}
+                    </div>
+                  )}
+
+                  {/* Subtle Hover Action Overlay */}
+                  <div className="absolute inset-0 z-30 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-start justify-end p-2.5 pointer-events-none">
+                    {isConfirming ? (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-lg shrink-0 pointer-events-auto"
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(itemId);
+                          }}
+                          className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-rose-700"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(null);
+                          }}
+                          className="px-2 py-0.5 text-slate-600 text-xs font-semibold rounded-lg cursor-pointer hover:text-slate-900"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 shrink-0 pointer-events-auto"
+                      >
+                        <button
+                          onClick={(e) => handleOpenEdit(item, e)}
+                          className="p-2 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 rounded-xl shadow-md transition-all cursor-pointer hover:scale-105"
+                          title="Edit Category or Photo"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(itemId);
+                          }}
+                          className="p-2 bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700 rounded-xl shadow-md transition-all cursor-pointer hover:scale-105"
+                          title="Delete Photo"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           {/* Pagination Controls */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -520,60 +815,169 @@ const AdminGallery: React.FC = () => {
         </div>
       )}
 
-      {/* ── 5. Add / Edit Gallery Modal ── */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      {/* ── 5. Add / Upload Gallery Modal (Local Photo Upload) ── */}
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          if (!open) handleCloseModal();
+          else setIsModalOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-lg rounded-2xl p-6 bg-white shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-[#051B30]">
-              Add New Gallery Photo
+            <DialogTitle className="text-xl font-extrabold text-[#051B30] flex items-center gap-2">
+              {editingItem && <Pencil size={18} className="text-[#0284C7]" />}
+              <span>{editingItem ? 'Edit Gallery Photo' : 'Add New Gallery Photo'}</span>
             </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSave} className="space-y-4 mt-2">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Image URL / Link
-              </label>
-              <input
-                type="text"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="https://... or paste image URL"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7]"
-                required
-              />
-            </div>
-
+            {/* Category Select */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Category
               </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7]"
-              >
-                <option value="commercial">Commercial HVAC</option>
-                <option value="vrf">VRF / VRV System</option>
-                <option value="ductable">Ductable System</option>
-                <option value="maintenance">AHU &amp; Maintenance</option>
-                <option value="residential">Residential AC</option>
-              </select>
+              {uploadCategoryOptions.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
+                  No active categories found. Please activate or create a category in{' '}
+                  <span className="font-bold">Gallery Categories</span> before uploading.
+                </div>
+              ) : (
+                <select
+                  value={modalCategory}
+                  onChange={(e) => setModalCategory(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] cursor-pointer"
+                >
+                  {uploadCategoryOptions.map((cat) => (
+                    <option key={cat._id || cat.title} value={cat.title}>
+                      {cat.title} {cat.isInactive ? '(Inactive)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
+            {/* Local Photo Upload Area */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                {editingItem ? 'Photo' : 'Upload Photo from Device'}
+              </label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {!previewUrl ? (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-7 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2.5 ${
+                    isDragging
+                      ? 'border-[#0284C7] bg-sky-50/70 scale-[1.01]'
+                      : 'border-slate-300 hover:border-[#0284C7] bg-slate-50/50 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-sky-500/10 to-[#0284C7]/20 text-[#0284C7] flex items-center justify-center shadow-inner">
+                    <UploadCloud size={26} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">
+                      Click to choose or drag &amp; drop photo
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      JPG, PNG, WEBP (Max 10MB)
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative rounded-2xl border border-slate-200 overflow-hidden bg-slate-900 group">
+                  <div className="aspect-[16/10] w-full flex items-center justify-center bg-slate-950">
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="p-3 bg-white flex items-center justify-between border-t border-slate-100">
+                    <div className="truncate mr-2">
+                      <p className="text-xs font-bold text-slate-800 truncate">
+                        {selectedFile ? selectedFile.name : (editingItem ? 'Current Photo' : 'Selected Photo')}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {selectedFile
+                          ? `${(selectedFile.size / 1024).toFixed(1)} KB`
+                          : (editingItem ? 'Click Change to replace photo' : '')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2.5 py-1 text-xs font-semibold text-[#0284C7] hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Status Toggle Switch */}
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Photo Status ({modalIsActive ? 'Active' : 'Inactive'})
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Display this photo publicly on website gallery
+                </p>
+              </div>
+
+              <ToggleSwitch
+                size="md"
+                checked={modalIsActive}
+                onChange={setModalIsActive}
+                ariaLabel="Toggle photo status"
+              />
+            </div>
+
+            {/* Modal Actions */}
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleCloseModal}
+                disabled={isSubmitting}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-gradient-to-r from-[#0284C7] to-[#0369A1] text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+                disabled={isSubmitting || (!editingItem && !selectedFile)}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#0284C7] to-[#0369A1] text-white text-xs font-bold rounded-xl shadow-md transition-all ${
+                  isSubmitting || (!editingItem && !selectedFile)
+                    ? 'opacity-60 cursor-not-allowed'
+                    : 'hover:shadow-lg active:scale-95 cursor-pointer'
+                }`}
               >
-                Add to Gallery
+                {isSubmitting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>{editingItem ? 'Updating...' : 'Uploading...'}</span>
+                  </>
+                ) : (
+                  <>
+                    {editingItem ? <CheckCircle2 size={14} /> : <UploadCloud size={14} />}
+                    <span>{editingItem ? 'Update Photo' : 'Upload Photo'}</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -623,10 +1027,10 @@ const AdminGallery: React.FC = () => {
           {previewIndex !== null && filteredItems[previewIndex] && (
             <div className="relative w-full h-full rounded-2xl overflow-hidden flex items-center justify-center">
               <img
-                key={filteredItems[previewIndex]._id || filteredItems[previewIndex].image}
-                src={filteredItems[previewIndex].image}
+                key={filteredItems[previewIndex]._id || filteredItems[previewIndex].id || previewIndex}
+                src={getImageUrl(filteredItems[previewIndex])}
                 alt="Enlarged photo preview"
-                className="w-full h-full object-cover select-none transition-all duration-300"
+                className="max-w-full max-h-full object-contain select-none transition-all duration-300"
               />
 
               {/* Photo Counter Badge */}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -15,12 +15,7 @@ import {
   Layers,
   ArrowUpRight,
 } from "lucide-react";
-import {
-  useGetBlogsQuery,
-  useGetGalleryQuery,
-  useGetBrandsQuery,
-  useGetContactsQuery,
-} from "@/store/api";
+import { getDashboardStats } from "@/api/dashboard.api";
 
 /* ─── Skeleton Loading Badge ─────────────────────────────────── */
 const CountBadge = ({ loading, count }: { loading: boolean; count: number }) =>
@@ -86,10 +81,41 @@ const ReferenceStatCard: React.FC<StatCardItem> = ({
 
 /* ─── Main Admin Dashboard Component ─────────────────────────── */
 const AdminDashboard = () => {
-  const { data: blogs = [], isLoading: blogsLoading } = useGetBlogsQuery();
-  const { data: gallery = [], isLoading: galleryLoading } = useGetGalleryQuery();
-  const { data: brands = [], isLoading: brandsLoading } = useGetBrandsQuery();
-  const { data: contacts = [], isLoading: contactsLoading } = useGetContactsQuery();
+  const [statsData, setStatsData] = useState({
+    blogsCount: 0,
+    galleryCount: 0,
+    brandsCount: 0,
+    contactsCount: 0,
+  });
+  const [recentContacts, setRecentContacts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const res = await getDashboardStats();
+        if (isMounted && res?.success) {
+          if (res.stats) {
+            setStatsData(res.stats);
+          }
+          if (Array.isArray(res.recentContacts)) {
+            setRecentContacts(res.recentContacts);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -110,8 +136,8 @@ const AdminDashboard = () => {
   const stats: StatCardItem[] = [
     {
       title: "Today's Blog Posts",
-      count: blogs.length,
-      loading: blogsLoading,
+      count: statsData.blogsCount,
+      loading: isLoading,
       subtext: "Published articles",
       icon: FileText,
       iconBg: "bg-blue-50",
@@ -120,8 +146,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Gallery",
-      count: gallery.length,
-      loading: galleryLoading,
+      count: statsData.galleryCount,
+      loading: isLoading,
       subtext: "Showcase photos",
       icon: Images,
       iconBg: "bg-purple-50",
@@ -130,8 +156,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Brands",
-      count: brands.length,
-      loading: brandsLoading,
+      count: statsData.brandsCount,
+      loading: isLoading,
       subtext: "Authorized manufacturers",
       icon: Tag,
       iconBg: "bg-emerald-50",
@@ -140,8 +166,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Contact",
-      count: contacts.length,
-      loading: contactsLoading,
+      count: statsData.contactsCount,
+      loading: isLoading,
       subtext: "Inquiries received",
       icon: MessageSquare,
       iconBg: "bg-cyan-50",
@@ -232,25 +258,23 @@ const AdminDashboard = () => {
                   </p>
                 </div>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-bold text-violet-700 bg-violet-50 border border-violet-100">
-                Live Queue
-              </span>
+            
             </div>
 
             {/* Inquiries List */}
-            {contactsLoading ? (
+            {isLoading ? (
               <div className="space-y-3 py-4">
                 {[1, 2].map((n) => (
                   <div key={n} className="h-16 bg-slate-50 rounded-xl animate-pulse" />
                 ))}
               </div>
-            ) : contacts.length === 0 ? (
+            ) : recentContacts.length === 0 ? (
               <div className="text-center py-8 text-slate-400 text-xs">
                 No recent inquiries received yet.
               </div>
             ) : (
               <div className="space-y-3">
-                {contacts.slice(0, 3).map((b: any, index: number) => (
+                {recentContacts.slice(0, 3).map((b: any, index: number) => (
                   <div
                     key={b._id || index}
                     className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-colors gap-3"
@@ -303,7 +327,7 @@ const AdminDashboard = () => {
           {/* Footer Link */}
           <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
             <span className="text-xs text-slate-400 font-medium">
-              Total {contacts.length} inquiries logged
+              Total {statsData.contactsCount} inquiries logged
             </span>
             <Link
               to="/admin/contact"
@@ -373,7 +397,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-bold text-emerald-900 group-hover:text-emerald-700 transition-colors truncate">
-                    Upload Partner Brand
+                    Upload Brand
                   </p>
                   <p className="text-[11px] text-emerald-600/70 font-medium truncate">
                     Authorized brand logo &amp; dealer tier

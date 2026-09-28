@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useGetBlogsQuery, addBlogREST, updateBlogREST, buildBlogFormData } from '@/store/api';
+import CKEditorComponent from '@/components/CKEditorComponent';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -17,14 +18,6 @@ import {
   Layers,
 } from 'lucide-react';
 
-const POPULAR_CATEGORIES = [
-  'Maintenance Tips',
-  'HVAC Technology',
-  'Installation Guide',
-  'Commercial HVAC',
-  'Energy Saving',
-];
-
 const AdminBlogEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -37,7 +30,6 @@ const AdminBlogEditor: React.FC = () => {
 
   // Form states
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
   const [content, setContent] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
@@ -51,13 +43,16 @@ const AdminBlogEditor: React.FC = () => {
       const existing = blogs.find((b: any) => (b._id || b.id) === id);
       if (existing) {
         setTitle(existing.title || '');
-        setCategory(existing.category || '');
-        setContent(
-          Array.isArray(existing.content)
-            ? existing.content.join('\n\n')
-            : existing.content || ''
-        );
-        setPreviewUrl(existing.image || '');
+        if (Array.isArray(existing.content)) {
+          setContent(
+            existing.content
+              .map((p: string) => (p.startsWith('<') ? p : `<p>${p}</p>`))
+              .join('')
+          );
+        } else {
+          setContent(existing.content || '');
+        }
+        setPreviewUrl(existing.image?.url || existing.image || '');
       }
     }
   }, [id, isEditing, blogs]);
@@ -90,18 +85,15 @@ const AdminBlogEditor: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Content parsing
-  const paragraphs = useMemo(() => {
-    return content
-      .split('\n\n')
-      .map((p) => p.trim())
-      .filter(Boolean);
+  // Plain text extraction from rich HTML for counting
+  const plainText = useMemo(() => {
+    if (!content) return '';
+    return content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   }, [content]);
 
   const wordCount = useMemo(() => {
-    const text = content.trim();
-    return text ? text.split(/\s+/).length : 0;
-  }, [content]);
+    return plainText ? plainText.split(/\s+/).filter(Boolean).length : 0;
+  }, [plainText]);
 
   const readTime = Math.max(1, Math.ceil(wordCount / 180));
 
@@ -113,12 +105,7 @@ const AdminBlogEditor: React.FC = () => {
       return;
     }
 
-    if (!category.trim()) {
-      toast.error('Please specify a category');
-      return;
-    }
-
-    if (paragraphs.length === 0) {
+    if (!content.trim() || !plainText) {
       toast.error('Please enter blog content');
       return;
     }
@@ -131,7 +118,7 @@ const AdminBlogEditor: React.FC = () => {
     try {
       setIsLoading(true);
       const fd = buildBlogFormData(
-        { title: title.trim(), category: category.trim(), content: paragraphs },
+        { title: title.trim(), content: content },
         imageFile
       );
 
@@ -236,40 +223,6 @@ const AdminBlogEditor: React.FC = () => {
                       className="w-full text-base sm:text-lg font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/30 focus:border-[#0284C7] transition-all"
                     />
                   </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2">
-                      Category <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      placeholder="e.g. Maintenance Tips, HVAC Technology, How-To..."
-                      className="w-full text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/30 focus:border-[#0284C7] transition-all"
-                    />
-
-                    {/* Quick Category Chips */}
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                      <span className="text-[11px] font-bold text-slate-400 mr-1">Quick pick:</span>
-                      {POPULAR_CATEGORIES.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setCategory(cat)}
-                          className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                            category === cat
-                              ? 'bg-[#0284C7] text-white border-[#0284C7] shadow-2xs'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
 
                 {/* Article Body Card */}
@@ -278,30 +231,29 @@ const AdminBlogEditor: React.FC = () => {
                     <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500">
                       Article Content <span className="text-rose-500">*</span>
                     </label>
-                    <span className="text-xs font-semibold text-slate-400">
-                      Press <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[11px]">Enter ↵</kbd> twice for new paragraph
+                    <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-[#0284C7]" />
+                      <span>Rich Text CKEditor</span>
                     </span>
                   </div>
 
-                  <textarea
-                    required
-                    rows={14}
+                  <CKEditorComponent
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Write your article content here...&#10;&#10;Separate paragraphs with a blank line (press Enter twice). Each paragraph will be formatted cleanly on the website."
-                    className="w-full text-sm leading-relaxed text-slate-800 placeholder:text-slate-400 border border-slate-200 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/30 focus:border-[#0284C7] transition-all resize-y min-h-[300px]"
+                    onChange={(val) => setContent(val)}
+                    placeholder="Write your article content here with formatting, headings, lists, tables, and links..."
                   />
 
-                  {/* Word & Paragraph Counter Bar */}
+                  {/* Word & Reading Time Counter Bar */}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-400 font-medium">
                     <div className="flex items-center gap-4">
                       <span>
-                        <strong className="text-slate-700 font-bold">{paragraphs.length}</strong>{' '}
-                        paragraph{paragraphs.length !== 1 ? 's' : ''}
+                        <strong className="text-slate-700 font-bold">{wordCount}</strong> words
                       </span>
                       <span>•</span>
                       <span>
-                        <strong className="text-slate-700 font-bold">{wordCount}</strong> words
+                        <strong className="text-slate-700 font-bold">
+                          {plainText ? plainText.length : 0}
+                        </strong> characters
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
@@ -315,11 +267,6 @@ const AdminBlogEditor: React.FC = () => {
               /* ── Live Article Preview ── */
               <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-2xs space-y-6">
                 <div className="space-y-3">
-                  {category && (
-                    <span className="inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-sky-100 text-[#0284C7] border border-sky-200">
-                      {category}
-                    </span>
-                  )}
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-[#051B30] tracking-tight leading-tight">
                     {title || 'Article Title Preview'}
                   </h1>
@@ -340,13 +287,15 @@ const AdminBlogEditor: React.FC = () => {
                   </div>
                 )}
 
-                <div className="space-y-4 text-slate-700 text-sm sm:text-base leading-relaxed">
-                  {paragraphs.length > 0 ? (
-                    paragraphs.map((p, idx) => <p key={idx}>{p}</p>)
-                  ) : (
-                    <p className="text-slate-400 italic">No content written yet. Switch to Editor to write.</p>
-                  )}
-                </div>
+                <div
+                  className="prose prose-slate max-w-none text-slate-700 text-base leading-relaxed custom-ckeditor-preview"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      content && plainText
+                        ? content
+                        : '<p class="text-slate-400 italic">No content written yet. Switch to Editor to write.</p>',
+                  }}
+                />
               </div>
             )}
           </div>
@@ -444,8 +393,12 @@ const AdminBlogEditor: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Paragraphs</span>
-                  <span className="font-bold text-slate-800">{paragraphs.length} blocks</span>
+                  <span className="text-slate-500">Words</span>
+                  <span className="font-bold text-slate-800">{wordCount} words</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500">Read Time</span>
+                  <span className="font-bold text-slate-800">~{readTime} min</span>
                 </div>
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Cover Image</span>

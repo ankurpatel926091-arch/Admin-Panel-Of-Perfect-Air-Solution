@@ -215,3 +215,236 @@
     transform: translateX(-50%);
   }
 }
+
+/* ============================================================
+   CKEDITOR 5 CUSTOM STYLING
+   ============================================================ */
+.custom-ckeditor-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-ckeditor-wrapper .ck.ck-editor {
+  border-radius: 0.85rem !important;
+  overflow: hidden !important;
+  border: 1px solid #e2e8f0 !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.custom-ckeditor-wrapper .ck.ck-editor:focus-within {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2) !important;
+}
+
+.custom-ckeditor-wrapper .ck-toolbar {
+  border: none !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  padding: 0.5rem 0.6rem !important;
+  border-radius: 0.85rem 0.85rem 0 0 !important;
+}
+
+.custom-ckeditor-wrapper .ck.ck-content {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 1.25rem !important;
+  min-height: 350px !important;
+  font-size: 0.95rem !important;
+  line-height: 1.75 !important;
+  color: #1e293b !important;
+  background-color: #ffffff !important;
+  border-radius: 0 0 0.85rem 0.85rem !important;
+}
+
+.custom-ckeditor-wrapper .ck.ck-content:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.custom-ckeditor-wrapper .ck-content h1,
+.custom-ckeditor-preview h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  margin-top: 1.25rem;
+  margin-bottom: 0.6rem;
+  color: #051b30;
+  line-height: 1.3;
+}
+
+.custom-ckeditor-wrapper .ck-content h2,
+.custom-ckeditor-preview h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: #051b30;
+  line-height: 1.35;
+}
+
+.custom-ckeditor-wrapper .ck-content h3,
+.custom-ckeditor-preview h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 0.9rem;
+  margin-bottom: 0.4rem;
+  color: #051b30;
+  line-height: 1.4;
+}
+
+.custom-ckeditor-wrapper .ck-content h4,
+.custom-ckeditor-preview h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+  color: #051b30;
+}
+
+.custom-ckeditor-wrapper .ck-content p,
+.custom-ckeditor-preview p {
+  margin-bottom: 0.9rem;
+}
+
+.custom-ckeditor-wrapper .ck-content ul,
+.custom-ckeditor-preview ul {
+  list-style-type: disc !important;
+  padding-left: 1.6rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.custom-ckeditor-wrapper .ck-content ol,
+.custom-ckeditor-preview ol {
+  list-style-type: decimal !important;
+  padding-left: 1.6rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.custom-ckeditor-wrapper .ck-content li,
+.custom-ckeditor-preview li {
+  margin-bottom: 0.35rem !important;
+}
+
+.custom-ckeditor-wrapper .ck-content blockquote,
+.custom-ckeditor-preview blockquote {
+  border-left: 4px solid #0284c7 !important;
+  background-color: #f0f9ff !important;
+  padding: 0.85rem 1.25rem !important;
+  font-style: italic !important;
+  color: #0369a1 !important;
+  border-radius: 0 0.5rem 0.5rem 0 !important;
+  margin: 1.25rem 0 !important;
+}
+
+.custom-ckeditor-wrapper .ck-content table,
+.custom-ckeditor-preview table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin: 1.25rem 0 !important;
+}
+
+.custom-ckeditor-wrapper .ck-content table td,
+.custom-ckeditor-wrapper .ck-content table th,
+.custom-ckeditor-preview table td,
+.custom-ckeditor-preview table th {
+  border: 1px solid #cbd5e1 !important;
+  padding: 0.6rem 0.85rem !important;
+}
+
+.custom-ckeditor-wrapper .ck-content table th,
+.custom-ckeditor-preview table th {
+  background-color: #f8fafc !important;
+  font-weight: 700 !important;
+}
+
+.custom-ckeditor-wrapper .ck-content a,
+.custom-ckeditor-preview a {
+  color: #0284c7 !important;
+  text-decoration: underline !important;
+}
+
+/* ============================================================
+   VIBRANT COLORFUL TOAST NOTIFICATION STYLING (SONNER)
+   ============================================================ */
+[data-sonner-toaster] [data-sonner-toast] {
+  border-radius: 14px !important;
+  font-family: inherit !important;
+  font-weight: 500 !important;
+  padding: 13px 18px !important;
+  border-width: 1px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.18), 0 8px 16px -6px rgba(0, 0, 0, 0.12) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Success Toast - Rich Emerald to Green Gradient */
+[data-sonner-toaster] [data-sonner-toast][data-type='success'] {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+  border-color: #047857 !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 32px -4px rgba(16, 185, 129, 0.42), 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+}
+
+/* Error Toast - Rich Crimson to Rose Gradient */
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] {
+  background: linear-gradient(135deg, #dc2626 0%, #f43f5e 100%) !important;
+  border-color: #be123c !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 32px -4px rgba(244, 63, 94, 0.42), 0 4px 12px rgba(244, 63, 94, 0.25) !important;
+}
+
+/* Warning Toast - Rich Amber to Orange Gradient */
+[data-sonner-toaster] [data-sonner-toast][data-type='warning'] {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
+  border-color: #b45309 !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 32px -4px rgba(245, 158, 11, 0.42), 0 4px 12px rgba(245, 158, 11, 0.25) !important;
+}
+
+/* Info Toast - Rich Sky Blue to Royal Blue Gradient */
+[data-sonner-toaster] [data-sonner-toast][data-type='info'] {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+  border-color: #0369a1 !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 32px -4px rgba(37, 99, 235, 0.42), 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+}
+
+/* Title & Description */
+[data-sonner-toaster] [data-sonner-toast] [data-title] {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.925rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 0.825rem !important;
+  margin-top: 3px !important;
+}
+
+/* Toast Icon */
+[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Close Button */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff !important;
+  border-radius: 9999px !important;
+  backdrop-filter: blur(4px) !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: rgba(255, 255, 255, 0.45) !important;
+  transform: scale(1.08) !important;
+}
+

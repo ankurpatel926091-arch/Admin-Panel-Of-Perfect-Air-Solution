@@ -1,151 +1,383 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useGetBrandsQuery, addBrandREST, updateBrandREST } from '@/store/api';
-import { toast } from 'sonner';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import {
+  createBrand,
+  updateBrand,
+} from "@/api/brand.api";
+
+import { toast } from "sonner";
+import { Tag, UploadCloud, Check, X, Trash2 } from "lucide-react";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 
 interface AdminBrandModalProps {
   isOpen: boolean;
   onClose: () => void;
   brand?: any;
+  onSuccess?: () => void;
 }
 
-const AdminBrandModal: React.FC<AdminBrandModalProps> = ({ isOpen, onClose, brand }) => {
-  const { refetch } = useGetBrandsQuery();
+const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
+  isOpen,
+  onClose,
+  brand,
+  onSuccess,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
+
+  // Brand name
+  const [name, setName] = useState("");
+
+  // Active status
+  const [isActive, setIsActive] = useState(true);
+
+  // Selected image
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>('');
+
+  // Image preview
+  const [previewUrl, setPreviewUrl] = useState("");
+
   const [isDragging, setIsDragging] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isEditing = !!brand;
+
+  // =====================================================
+  // OPEN MODAL
+  // =====================================================
 
   useEffect(() => {
     if (isOpen) {
       setImageFile(null);
-      setPreviewUrl(brand?.heroImage || '');
       setIsDragging(false);
+
+      if (brand) {
+        // Edit mode
+        setName(brand.name || "");
+        setIsActive(brand.isActive ?? true);
+
+        // Backend response:
+        // logo: {
+        //   url: "...",
+        //   public_id: "..."
+        // }
+
+        setPreviewUrl(brand.logo?.url || "");
+      } else {
+        // Add mode
+        setName("");
+        setIsActive(true);
+        setPreviewUrl("");
+      }
     }
   }, [brand, isOpen]);
 
+  // =====================================================
+  // APPLY FILE
+  // =====================================================
+
   const applyFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
     setImageFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+
+    const preview = URL.createObjectURL(file);
+
+    setPreviewUrl(preview);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // =====================================================
+  // FILE CHANGE
+  // =====================================================
+
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
-    if (file) applyFile(file);
+
+    if (file) {
+      applyFile(file);
+    }
   };
+
+  // =====================================================
+  // DROP
+  // =====================================================
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+
     setIsDragging(false);
+
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) applyFile(file);
-    else toast.error('Please drop a valid image file');
+
+    if (file) {
+      applyFile(file);
+    }
   };
 
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
-  const handleDragLeave = () => setIsDragging(false);
+  // =====================================================
+  // DRAG OVER
+  // =====================================================
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+
+    setIsDragging(true);
+  };
+
+  // =====================================================
+  // DRAG LEAVE
+  // =====================================================
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  // =====================================================
+  // REMOVE IMAGE
+  // =====================================================
 
   const handleRemoveImage = () => {
     setImageFile(null);
-    setPreviewUrl('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    setPreviewUrl("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // =====================================================
+  // SUBMIT
+  // =====================================================
+
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
-    if (!brand && !imageFile) {
-      toast.error('Please select an image to upload');
+
+    // Name validation
+    if (!name.trim()) {
+      toast.error("Brand name is required");
       return;
     }
+
+    // Add mode me logo required hai
+    if (!isEditing && !imageFile) {
+      toast.error("Please select a brand logo");
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const formData = new FormData();
-      if (imageFile) formData.append('heroImage', imageFile);
 
-      if (brand) {
-        await updateBrandREST(brand._id || brand.id, formData);
-        toast.success('Brand updated successfully');
-      } else {
-        await addBrandREST(formData);
-        toast.success('Brand added successfully');
+      // =================================================
+      // FORM DATA
+      // =================================================
+
+      const formData = new FormData();
+
+      // Backend:
+      // const { name, isActive } = req.body;
+
+      formData.append("name", name.trim());
+
+      formData.append(
+        "isActive",
+        String(isActive)
+      );
+
+      // Backend:
+      // upload.single("logo")
+
+      if (imageFile) {
+        formData.append("logo", imageFile);
       }
-      await refetch();
+
+      console.log("Submitting Brand:", {
+        name,
+        isActive,
+        imageFile,
+      });
+
+      // =================================================
+      // UPDATE
+      // =================================================
+
+      if (isEditing) {
+        await updateBrand(
+          brand._id,
+          formData
+        );
+
+        toast.success(
+          "Brand updated successfully"
+        );
+      }
+
+      // =================================================
+      // CREATE
+      // =================================================
+
+      else {
+        await createBrand(formData);
+
+        toast.success(
+          "Brand added successfully"
+        );
+      }
+
+      // Refresh parent brands
+      if (onSuccess) {
+        await onSuccess();
+      }
+
+      // Close modal
       onClose();
-    } catch (err: any) {
-      toast.error(err?.message || 'Error saving brand');
+
+    } catch (error: any) {
+      console.error(
+        "Brand Save Error:",
+        error
+      );
+
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to save brand"
+      );
+
     } finally {
       setIsLoading(false);
     }
   };
 
-  const isEditing = !!brand;
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md p-0 gap-0 bg-white rounded-md overflow-hidden border border-neutral-200 shadow-md">
+    <Dialog
+      open={isOpen}
+      onOpenChange={onClose}
+    >
+      <DialogContent className="max-w-md p-0 gap-0 bg-white rounded-2xl overflow-hidden border border-slate-200/90 shadow-2xl">
 
-        {/* ── Header ── */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-neutral-100">
+        {/* =========================================
+            HEADER
+        ========================================= */}
+        <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/70 to-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-md bg-neutral-900 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0284C7]/15 to-sky-500/25 text-[#0284C7] flex items-center justify-center flex-shrink-0 border border-sky-100 shadow-sm">
+              <Tag size={18} className="text-[#0284C7]" />
             </div>
+
             <div>
-              <DialogTitle className="text-base font-semibold text-neutral-900 leading-tight">
-                {isEditing ? 'Update Brand Logo' : 'Add New Brand'}
+              <DialogTitle className="text-lg font-bold text-slate-800 leading-tight">
+                {isEditing
+                  ? "Update Brand"
+                  : "Add New Brand"}
               </DialogTitle>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                {isEditing ? 'Replace the existing logo image' : 'Upload a brand partner logo'}
+              <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                {isEditing
+                  ? "Update brand information and logo"
+                  : "Add a new brand partner"}
               </p>
             </div>
           </div>
         </DialogHeader>
 
-        {/* ── Form ── */}
+        {/* =========================================
+            FORM
+        ========================================= */}
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-5 space-y-4">
+          <div className="px-6 py-5 space-y-5">
 
+            {/* =====================================
+                BRAND NAME
+            ===================================== */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                Brand Name
+              </label>
+
+              <input
+                type="text"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
+                placeholder="e.g. Daikin, Mitsubishi, LG"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none transition-all focus:bg-white focus:border-[#0284C7] focus:ring-2 focus:ring-[#0284C7]/15"
+              />
+            </div>
+
+            {/* =====================================
+                ACTIVE STATUS
+            ===================================== */}
+            <div className="flex items-center justify-between border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/60">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">
+                  Active Brand
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Show this brand publicly on the website
+                </p>
+              </div>
+
+              <ToggleSwitch
+                size="md"
+                checked={isActive}
+                onChange={setIsActive}
+                ariaLabel="Toggle active brand status"
+              />
+            </div>
+
+            {/* =====================================
+                IMAGE PREVIEW / DROP ZONE
+            ===================================== */}
             {previewUrl ? (
-              /* ── Preview State ── */
-              <div className="relative rounded-md border border-neutral-200 bg-neutral-50 overflow-hidden">
-                <div className="flex items-center justify-center p-6 min-h-[160px]">
+              <div className="relative rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+                <div className="flex items-center justify-center p-6 min-h-[150px] bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]">
                   <img
                     src={previewUrl}
                     alt="Brand preview"
-                    className="max-h-32 max-w-full object-contain drop-shadow-sm"
+                    className="max-h-28 max-w-full object-contain drop-shadow-sm transition-transform hover:scale-105"
                   />
                 </div>
-                <div className="flex items-center justify-between px-4 py-2.5 border-t border-neutral-200 bg-white">
+
+                <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-200 bg-white">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-5 h-5 rounded bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <Check size={12} strokeWidth={3} />
                     </div>
-                    <span className="text-xs text-neutral-500 truncate">
-                      {imageFile ? imageFile.name : 'Current logo'}
+
+                    <span className="text-xs font-medium text-slate-600 truncate">
+                      {imageFile
+                        ? imageFile.name
+                        : "Current logo"}
                     </span>
-                    {imageFile && (
-                      <span className="text-xs text-neutral-400 flex-shrink-0">
-                        ({(imageFile.size / 1024).toFixed(0)} KB)
-                      </span>
-                    )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+
+                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-xs text-neutral-600 hover:text-neutral-900 font-medium px-2 py-1 hover:bg-neutral-100 rounded-md transition-colors cursor-pointer"
+                      onClick={() =>
+                        fileInputRef.current?.click()
+                      }
+                      className="text-xs font-semibold text-slate-600 hover:text-[#0284C7] px-2.5 py-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                     >
                       Replace
                     </button>
+
                     <button
                       type="button"
                       onClick={handleRemoveImage}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2.5 py-1 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                     >
                       Remove
                     </button>
@@ -153,39 +385,45 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({ isOpen, onClose, bran
                 </div>
               </div>
             ) : (
-              /* ── Drop Zone State ── */
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() =>
+                  fileInputRef.current?.click()
+                }
                 className={`
-                  relative flex flex-col items-center justify-center min-h-[160px] rounded-md border-2 border-dashed cursor-pointer transition-all duration-200
-                  ${isDragging
-                    ? 'border-neutral-900 bg-neutral-50 scale-[1.01]'
-                    : 'border-neutral-300 hover:border-neutral-400 bg-neutral-50 hover:bg-white'
+                  relative flex flex-col items-center justify-center min-h-[160px] rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 p-6
+                  ${
+                    isDragging
+                      ? "border-[#0284C7] bg-sky-50/60 scale-[1.01]"
+                      : "border-slate-300 hover:border-[#0284C7] bg-slate-50/60 hover:bg-white"
                   }
                 `}
               >
-                <div className={`w-12 h-12 rounded-md flex items-center justify-center mb-3 transition-colors duration-200 ${isDragging ? 'bg-neutral-900' : 'bg-neutral-200'}`}>
-                  <svg
-                    className={`w-5 h-5 transition-colors duration-200 ${isDragging ? 'text-white' : 'text-neutral-500'}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-colors duration-200 ${
+                    isDragging
+                      ? "bg-[#0284C7] text-white shadow-md shadow-sky-500/20"
+                      : "bg-white text-slate-500 border border-slate-200 shadow-sm"
+                  }`}
+                >
+                  <UploadCloud size={22} />
                 </div>
-                <p className="text-sm font-semibold text-neutral-700">
-                  {isDragging ? 'Drop to upload' : 'Drop image here'}
+
+                <p className="text-sm font-semibold text-slate-700 text-center">
+                  {isDragging
+                    ? "Drop logo here"
+                    : "Click or drag brand logo here"}
                 </p>
-                <p className="text-xs text-neutral-400 mt-1">
-                  or <span className="text-neutral-600 font-medium underline underline-offset-2">browse files</span>
+
+                <p className="text-xs text-slate-400 mt-1">
+                  Supports PNG, JPG, SVG, WEBP
                 </p>
-                <p className="text-xs text-neutral-400 mt-3">PNG, JPG, SVG, WEBP</p>
               </div>
             )}
 
-            {/* Hidden file input */}
+            {/* Hidden Input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -193,44 +431,39 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({ isOpen, onClose, bran
               onChange={handleFileChange}
               className="hidden"
             />
-
-            {/* Keep existing notice */}
-            {isEditing && !imageFile && brand?.heroImage && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md">
-                <svg className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-xs text-amber-700">No new file selected — existing logo will be kept.</p>
-              </div>
-            )}
           </div>
 
-          {/* ── Footer ── */}
-          <div className="px-6 pb-6 flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+          {/* =========================================
+              FOOTER
+          ========================================= */}
+          <div className="px-6 py-4 flex items-center justify-end gap-2.5 border-t border-slate-100 bg-slate-50/50">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2.5 text-sm font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
             >
               Cancel
             </button>
+
             <button
               type="submit"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-neutral-900 hover:bg-neutral-700 text-white text-sm font-semibold rounded-md transition-all duration-200 disabled:opacity-60 active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#0284C7] to-[#0369A1] hover:from-[#0369A1] hover:to-[#075985] text-white text-xs font-bold rounded-xl shadow-md shadow-sky-600/20 hover:shadow-lg transition-all duration-200 disabled:opacity-60 active:scale-95 cursor-pointer"
             >
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving...
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Saving...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {isEditing ? 'Update Brand' : 'Save Brand'}
+                  <Check size={14} strokeWidth={2.5} />
+                  <span>
+                    {isEditing
+                      ? "Update Brand"
+                      : "Save Brand"}
+                  </span>
                 </>
               )}
             </button>

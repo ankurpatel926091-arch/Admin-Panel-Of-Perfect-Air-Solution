@@ -18,7 +18,6 @@ const AdminBlogModal: React.FC<AdminBlogModalProps> = ({ isOpen, onClose, blog }
   const [activeTab, setActiveTab] = useState<'info' | 'content'>('info');
 
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
   const [content, setContent] = useState('');
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -33,12 +32,10 @@ const AdminBlogModal: React.FC<AdminBlogModalProps> = ({ isOpen, onClose, blog }
       setIsDragging(false);
       if (blog) {
         setTitle(blog.title || '');
-        setCategory(blog.category || '');
         setContent(Array.isArray(blog.content) ? blog.content.join('\n\n') : (blog.content || ''));
         setPreviewUrl(blog.image || '');
       } else {
         setTitle('');
-        setCategory('');
         setContent('');
         setPreviewUrl('');
       }
@@ -89,7 +86,7 @@ const AdminBlogModal: React.FC<AdminBlogModalProps> = ({ isOpen, onClose, blog }
 
     try {
       setIsLoading(true);
-      const fd = buildBlogFormData({ title, category, content: parsedContent }, imageFile);
+      const fd = buildBlogFormData({ title, content: parsedContent }, imageFile);
 
       if (blog) {
         await updateBlogREST(blog._id || blog.id, fd);
@@ -172,16 +169,6 @@ const AdminBlogModal: React.FC<AdminBlogModalProps> = ({ isOpen, onClose, blog }
                       onChange={e => setTitle(e.target.value)}
                       className={inputClass}
                       placeholder="e.g. Top 5 Tips for AC Maintenance"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className={labelClass}>Category *</label>
-                    <input
-                      required
-                      value={category}
-                      onChange={e => setCategory(e.target.value)}
-                      className={inputClass}
-                      placeholder="e.g. Tips & Guides, News, How-to"
                     />
                   </div>
                 </div>

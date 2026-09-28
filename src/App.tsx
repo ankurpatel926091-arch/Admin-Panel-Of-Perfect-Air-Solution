@@ -18,6 +18,7 @@ import AdminBlogEditor from "./pages/AdminBlogEditor";
 import AdminServices from "./pages/AdminServices";
 import AdminBrands from "./pages/AdminBrands";
 import AdminGallery from "./pages/AdminGallery";
+import AdminGalleryCategory from "./pages/AdminGalleryCategory";
 import AdminContact from "./pages/AdminContact";
 import AdminBookings from "./pages/AdminBookings";
 
@@ -27,8 +28,8 @@ const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
-      <ToastContainer position="top-right" autoClose={3000} />
+      <Sonner position="top-right" richColors closeButton />
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
 
       <AuthProvider>
         <BrowserRouter>
@@ -48,6 +49,8 @@ const App: React.FC = () => (
               <Route path="services" element={<AdminServices />} />
               <Route path="brands" element={<AdminBrands />} />
               <Route path="gallery" element={<AdminGallery />} />
+              <Route path="gallery-categories" element={<AdminGalleryCategory />} />
+              <Route path="galleryCategory" element={<Navigate to="/admin/gallery-categories" replace />} />
               <Route path="contacts" element={<AdminContact />} />
               <Route path="contact" element={<Navigate to="/admin/contacts" replace />} />
               <Route path="bookings" element={<AdminBookings />} />

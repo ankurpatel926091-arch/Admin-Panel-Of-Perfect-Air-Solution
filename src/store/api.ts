@@ -15,7 +15,8 @@ import {
   ContactInquiry,
 } from '@/data/staticData';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_URL = RAW_BASE_URL.replace(/\/api\/?$/, '');
 
 export const api = createApi({
   reducerPath: 'api',
@@ -30,11 +31,12 @@ export const api = createApi({
     getBlogs: builder.query<BlogData[], void>({
       async queryFn() {
         try {
-          const res = await fetch(`${API_URL}/api/blogs`);
+          const res = await fetch(`${API_URL}/api/blogs/get`);
           if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              return { data };
+            const json = await res.json();
+            const list = json?.data || (Array.isArray(json) ? json : []);
+            if (Array.isArray(list) && list.length > 0) {
+              return { data: list };
             }
           }
         } catch {
@@ -64,7 +66,13 @@ export const api = createApi({
     deleteBlog: builder.mutation<{ message: string }, string>({
       async queryFn(id) {
         try {
-          await fetch(`${API_URL}/api/blogs/${id}`, { method: 'DELETE' });
+          const token = localStorage.getItem('adminToken') || '';
+          await fetch(`${API_URL}/api/blogs/${id}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         } catch {
           // Ignore fallback
         }
@@ -168,13 +176,34 @@ export const {
 
 // Blog REST helpers connected to backend with local fallback
 export const buildBlogFormData = (
-  data: { title: string; category: string; content: string[] },
+  data: { title: string; category?: string; content: string[] | string; excerpt?: string },
   imageFile: File | null
 ) => {
   const fd = new FormData();
   fd.append('title', data.title);
-  fd.append('category', data.category);
-  fd.append('content', JSON.stringify(data.content));
+  if (data.category) {
+    fd.append('category', data.category);
+  }
+
+  // If content is string (from CKEditor), store directly; if array, JSON stringify
+  const contentValue =
+    typeof data.content === 'string'
+      ? data.content
+      : JSON.stringify(data.content);
+  fd.append('content', contentValue);
+
+  // Extract clean plain text for excerpt (required by backend createBlog)
+  const plainText = (
+    typeof data.content === 'string'
+      ? data.content.replace(/<[^>]*>/g, ' ')
+      : data.content.join(' ')
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const excerpt = data.excerpt || plainText.slice(0, 160) || data.title;
+  fd.append('excerpt', excerpt);
+
   if (imageFile) {
     fd.append('image', imageFile);
   }
@@ -182,37 +211,35 @@ export const buildBlogFormData = (
 };
 
 export const addBlogREST = async (formData: FormData) => {
-  try {
-    const res = await fetch(`${API_URL}/api/blogs`, {
-      method: 'POST',
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to create blog post');
-    }
-    return await res.json();
-  } catch (error: any) {
-    console.warn('Backend blog create fallback:', error?.message);
-    return { message: 'Success' };
+  const token = localStorage.getItem('adminToken') || '';
+  const res = await fetch(`${API_URL}/api/blogs/create`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to create blog post');
   }
+  return await res.json();
 };
 
 export const updateBlogREST = async (id: string, formData: FormData) => {
-  try {
-    const res = await fetch(`${API_URL}/api/blogs/${id}`, {
-      method: 'PUT',
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to update blog post');
-    }
-    return await res.json();
-  } catch (error: any) {
-    console.warn('Backend blog update fallback:', error?.message);
-    return { message: 'Success' };
+  const token = localStorage.getItem('adminToken') || '';
+  const res = await fetch(`${API_URL}/api/blogs/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to update blog post');
   }
+  return await res.json();
 };
 
 export const addBrandREST = async (..._args: any[]) => ({ message: "Success" });
