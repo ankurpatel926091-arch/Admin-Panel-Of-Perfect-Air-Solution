@@ -9,9 +9,9 @@ export const DEFAULT_GALLERY_CATEGORIES = [
   { _id: "cat_ahu", title: "AHU & Maintenance", isActive: true, createdAt: new Date().toISOString() },
 ];
 
-export const getGalleryCategories = async () => {
+export const getGalleryCategories = async (params) => {
   try {
-    const response = await baseApi.get("/galleryCategory/get");
+    const response = await baseApi.get("/galleryCategory/get", { params });
     return response.data;
   } catch (error) {
     console.warn("Backend getGalleryCategories fallback:", error);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getGalleryCategories,
   createGalleryCategory,
@@ -16,7 +17,7 @@ interface GalleryCategoryItem {
   createdAt?: string;
   updatedAt?: string;
 }
-import { toast } from "sonner";
+import { toast } from "react-toastify";
 import Loader from "@/components/ui/Loader";
 import useDebounce from "@/hooks/useDebounce";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
@@ -30,6 +31,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -49,13 +52,16 @@ const SUGGESTED_CATEGORIES = [
 ];
 
 const AdminGalleryCategory: React.FC = () => {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<GalleryCategoryItem[]>([]);
+  const [counts, setCounts] = useState({ total: 0, active: 0, inactive: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearch || (isLoading && Boolean(searchQuery));
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   // Modal State
@@ -72,14 +78,26 @@ const AdminGalleryCategory: React.FC = () => {
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
-      const res = await getGalleryCategories();
-      const list = res?.galleryCategories || res?.data || [];
-      if (Array.isArray(list) && list.length > 0) {
-        setCategories(list);
-      } else {
-        // Fallback to initial defaults if empty
-        setCategories(DEFAULT_GALLERY_CATEGORIES);
+      const params: any = {};
+      if (debouncedSearch) {
+        params.name = debouncedSearch;
       }
+      if (statusFilter !== "all") {
+        params.status = statusFilter;
+      }
+      const res = await getGalleryCategories(params);
+      const list = res?.galleryCategories || res?.data || [];
+      const items = Array.isArray(list) ? list : [];
+      setCategories(items);
+
+      const calcActive = items.filter((it: any) => it.isActive !== false).length;
+      const calcInactive = items.filter((it: any) => it.isActive === false).length;
+
+      setCounts((prev) => ({
+        total: res?.totalCount ?? res?.total ?? items.length,
+        active: res?.activeCount !== undefined ? res.activeCount : (statusFilter === 'all' && !debouncedSearch ? calcActive : prev.active),
+        inactive: res?.inactiveCount !== undefined ? res.inactiveCount : (statusFilter === 'all' && !debouncedSearch ? calcInactive : prev.inactive),
+      }));
     } catch (err: any) {
       console.warn("Fetch categories fallback:", err?.message);
       setCategories(DEFAULT_GALLERY_CATEGORIES);
@@ -90,21 +108,13 @@ const AdminGalleryCategory: React.FC = () => {
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [debouncedSearch, statusFilter]);
 
-  // Filtered List
-  const filteredCategories = useMemo(() => {
+  const displayCategories = useMemo(() => {
     const q = debouncedSearch.toLowerCase().trim();
-    return categories.filter((c) => {
-      const matchesSearch = !q || (c.title || "").toLowerCase().includes(q);
-      const isActive = c.isActive !== false;
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && isActive) ||
-        (statusFilter === "inactive" && !isActive);
-      return matchesSearch && matchesStatus;
-    });
-  }, [categories, debouncedSearch, statusFilter]);
+    if (!q) return categories;
+    return categories.filter((c: any) => c.title?.toLowerCase().includes(q));
+  }, [categories, debouncedSearch]);
 
   // Open modal for Create
   const handleOpenAdd = () => {
@@ -186,11 +196,7 @@ const AdminGalleryCategory: React.FC = () => {
       toast.success(
         `Category is now ${!item.isActive ? "Active" : "Inactive"}`,
       );
-      setCategories((prev) =>
-        prev.map((c) =>
-          (c._id || c.id) === id ? { ...c, isActive: !c.isActive } : c,
-        ),
-      );
+      fetchCategories();
     } catch (err: any) {
       // Local toggle fallback
       setCategories((prev) =>
@@ -222,8 +228,7 @@ const AdminGalleryCategory: React.FC = () => {
 
     try {
       await deleteGalleryCategory(id);
-
-      setCategories((prev) => prev.filter((c) => (c._id || c.id) !== id));
+      fetchCategories();
 
       await Swal.fire({
         title: "Deleted!",
@@ -243,17 +248,19 @@ const AdminGalleryCategory: React.FC = () => {
     }
   };
 
-  const activeCount = categories.filter((c) => c.isActive !== false).length;
-  const inactiveCount = categories.filter((c) => c.isActive === false).length;
-
   return (
     <div className="space-y-6 font-sans pb-16">
       {/* Header */}
       <div className="bg-[#051B30] text-white rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 flex items-center justify-center">
-            <Layers size={24} />
-          </div>
+          <button
+            onClick={() => navigate(-1)}
+            type="button"
+            title="Go Back"
+            className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 hover:from-[#0369A1] hover:to-cyan-500 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-95 group"
+          >
+            <ArrowLeft size={22} className="transition-transform group-hover:-translate-x-0.5" />
+          </button>
 
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold">
@@ -265,20 +272,6 @@ const AdminGalleryCategory: React.FC = () => {
             </p>
           </div>
         </div>
-
-        {/* Add button */}
-        {/* <button
-        type="button"
-        onClick={() => {
-          setEditingCategory(null);
-          setCategoryTitle("");
-          setCategoryIsActive(true);
-        }}
-        className="inline-flex items-center justify-center gap-2 bg-[#0284C7] hover:bg-sky-600 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-md transition-all"
-      >
-        <Plus size={17} />
-        Add Category
-      </button> */}
       </div>
 
       {/* Stats */}
@@ -290,7 +283,7 @@ const AdminGalleryCategory: React.FC = () => {
             </span>
 
             <span className="text-3xl font-extrabold text-[#051B30] mt-1 block">
-              {categories.length}
+              {counts.total}
             </span>
           </div>
 
@@ -306,7 +299,7 @@ const AdminGalleryCategory: React.FC = () => {
             </span>
 
             <span className="text-3xl font-extrabold text-emerald-600 mt-1 block">
-              {activeCount}
+              {counts.active}
             </span>
           </div>
 
@@ -324,28 +317,41 @@ const AdminGalleryCategory: React.FC = () => {
           <div className="p-4 border-b border-slate-100 space-y-3.5">
             {/* Search Input */}
             <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-              />
+              {isSearching ? (
+                <Loader2
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin"
+                />
+              ) : (
+                <Search
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                />
+              )}
 
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search category name..."
-                className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7]"
+                className="w-full pl-9 pr-14 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7]"
               />
 
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={14} />
-                </button>
-              )}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {isSearching && (
+                  <Loader2 size={15} className="text-[#0284C7] animate-spin" />
+                )}
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                    title="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Active & Inactive Filter Tabs */}
@@ -368,7 +374,7 @@ const AdminGalleryCategory: React.FC = () => {
                         : "bg-slate-200 text-slate-700"
                     }`}
                   >
-                    {categories.length}
+                    {counts.total}
                   </span>
                 </button>
 
@@ -390,7 +396,7 @@ const AdminGalleryCategory: React.FC = () => {
                         : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    {activeCount}
+                    {counts.active}
                   </span>
                 </button>
 
@@ -412,13 +418,13 @@ const AdminGalleryCategory: React.FC = () => {
                         : "bg-slate-200 text-slate-700"
                     }`}
                   >
-                    {inactiveCount}
+                    {counts.inactive}
                   </span>
                 </button>
               </div>
 
               <div className="text-xs font-bold text-slate-400">
-                Showing {filteredCategories.length} {filteredCategories.length === 1 ? "category" : "categories"}
+                Showing {displayCategories.length} {displayCategories.length === 1 ? "category" : "categories"}
               </div>
             </div>
           </div>
@@ -428,7 +434,7 @@ const AdminGalleryCategory: React.FC = () => {
             <div className="p-16 flex justify-center">
               <Loader />
             </div>
-          ) : filteredCategories.length === 0 ? (
+          ) : displayCategories.length === 0 ? (
             <div className="p-12 text-center">
               <Layers size={36} className="mx-auto text-slate-300 mb-3" />
 
@@ -465,7 +471,7 @@ const AdminGalleryCategory: React.FC = () => {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredCategories.map((cat, idx) => {
+                  {displayCategories.map((cat, idx) => {
                     const id = cat._id || cat.id || `idx_${idx}`;
 
                     const isActive = cat.isActive !== false;

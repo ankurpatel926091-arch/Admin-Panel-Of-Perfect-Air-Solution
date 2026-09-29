@@ -1,17 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getContacts } from '@/api/contact.api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
 import useDebounce from '@/hooks/useDebounce';
 
 import {
+  ArrowLeft,
   MessageSquare,
   Phone,
   Search,
   X,
   Calendar,
   MessageCircle,
+  Loader2,
 } from 'lucide-react';
 
 import {
@@ -58,12 +61,15 @@ const getServiceBadge = (service: string) => {
 // ─────────────────────────────────────────────
 
 const AdminContact: React.FC = () => {
+  const navigate = useNavigate();
+
   // ───────────────────────────────────────────
   // Contact Data
   // ───────────────────────────────────────────
 
   const [contacts, setContacts] = useState<any[]>([]);
   const [totalContacts, setTotalContacts] = useState(0);
+  const [globalTotal, setGlobalTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   // ───────────────────────────────────────────
@@ -72,6 +78,7 @@ const AdminContact: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearch || (isLoading && Boolean(searchQuery));
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
 
   // ───────────────────────────────────────────
@@ -81,75 +88,60 @@ const AdminContact: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-
   // ───────────────────────────────────────────
-  // Fetch Contacts
+  // Fetch Contacts (Backend Params)
   // ───────────────────────────────────────────
 
-  useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        setIsLoading(true);
+  const fetchContacts = async () => {
+    try {
+      setIsLoading(true);
 
-        const data = await getContacts();
+      const params: any = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
 
-        setContacts(data.contacts || []);
-        setTotalContacts(data.total || 0);
-      } catch (error) {
-        console.error('Error fetching contacts:', error);
-
-        toast.error('Failed to load inquiries');
-      } finally {
-        setIsLoading(false);
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
       }
-    };
 
-    fetchContacts();
-  }, []);
+      const data = await getContacts(params);
 
-
-  // ───────────────────────────────────────────
-  // Reset Pagination When Search Changes
-  // ───────────────────────────────────────────
+      setContacts(data.contacts || []);
+      setTotalContacts(data.total ?? 0);
+      setGlobalTotal(data.globalTotal ?? data.total ?? 0);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      toast.error('Failed to load inquiries');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setCurrentPage(1);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      fetchContacts();
+    }
   }, [debouncedSearch]);
 
+  useEffect(() => {
+    fetchContacts();
+  }, [currentPage]);
 
-  // ───────────────────────────────────────────
-  // Search Filter
-  // ───────────────────────────────────────────
-
-  const filteredContacts = useMemo(() => {
+  // Client-side safety filter so non-matching rows are NEVER rendered
+  const displayContacts = useMemo(() => {
     const q = debouncedSearch.toLowerCase().trim();
-
-    if (!q) {
-      return contacts;
-    }
-
-    return contacts.filter((item: any) => {
-      return (
-        item.name?.toLowerCase().includes(q) ||
-        item.email?.toLowerCase().includes(q) ||
-        item.phone?.includes(q)
-      );
-    });
-  }, [contacts, debouncedSearch]);
-
-
-  // ───────────────────────────────────────────
-  // Pagination
-  // ───────────────────────────────────────────
-
-  const paginatedContacts = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-
-    return filteredContacts.slice(
-      start,
-      start + itemsPerPage
+    if (!q) return contacts;
+    return contacts.filter((c: any) =>
+      c.name?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.phone?.includes(q) ||
+      c.service?.toLowerCase().includes(q) ||
+      c.message?.toLowerCase().includes(q)
     );
-  }, [filteredContacts, currentPage]);
+  }, [contacts, debouncedSearch]);
 
 
   // ───────────────────────────────────────────
@@ -173,9 +165,14 @@ const AdminContact: React.FC = () => {
 
           <div className="flex items-center gap-4">
 
-            <div className="w-13 h-13 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-cyan-300 shadow-inner shrink-0">
-              <MessageSquare size={26} />
-            </div>
+            <button
+              onClick={() => navigate(-1)}
+              type="button"
+              title="Go Back"
+              className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 hover:from-[#0369A1] hover:to-cyan-500 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-95 group shrink-0"
+            >
+              <ArrowLeft size={22} className="transition-transform group-hover:-translate-x-0.5" />
+            </button>
 
             <div>
 
@@ -220,7 +217,7 @@ const AdminContact: React.FC = () => {
           <div className="mt-3">
 
             <div className="text-3xl font-black text-blue-950">
-              {totalContacts}
+              {globalTotal || totalContacts}
             </div>
 
             <p className="text-[11px] text-blue-600 font-semibold mt-1">
@@ -282,7 +279,7 @@ const AdminContact: React.FC = () => {
           <div className="mt-3">
 
             <div className="text-3xl font-black text-cyan-950">
-              {filteredContacts.length}
+              {debouncedSearch.trim() ? displayContacts.length : totalContacts}
             </div>
 
             <p className="text-[11px] text-cyan-600 font-semibold mt-1">
@@ -304,27 +301,41 @@ const AdminContact: React.FC = () => {
 
         <div className="relative flex-1 min-w-[260px]">
 
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-          />
+          {isSearching ? (
+            <Loader2
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin"
+            />
+          ) : (
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+          )}
 
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by customer name, phone number, or email..."
-            className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
+            className="w-full pl-9 pr-14 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
           />
 
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-            >
-              <X size={14} />
-            </button>
-          )}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {isSearching && (
+              <Loader2 size={15} className="text-[#0284C7] animate-spin" />
+            )}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
 
         </div>
 
@@ -349,7 +360,7 @@ const AdminContact: React.FC = () => {
 
           </div>
 
-        ) : filteredContacts.length === 0 ? (
+        ) : displayContacts.length === 0 ? (
 
           <div className="py-20 px-6 flex flex-col items-center justify-center text-center gap-3">
 
@@ -406,7 +417,7 @@ const AdminContact: React.FC = () => {
 
               <tbody className="divide-y divide-slate-100">
 
-                {paginatedContacts.map((contact: any) => {
+                {displayContacts.map((contact: any) => {
 
                   const initials = contact.name
                     ? contact.name
@@ -572,13 +583,13 @@ const AdminContact: React.FC = () => {
             Pagination
         ───────────────────────────────────── */}
 
-        {filteredContacts.length > 0 && (
+        {displayContacts.length > 0 && (
 
           <div className="p-4 border-t border-slate-100 bg-slate-50/40">
 
             <AdminPagination
               currentPage={currentPage}
-              totalItems={filteredContacts.length}
+              totalItems={debouncedSearch.trim() ? displayContacts.length : totalContacts}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGetServicesQuery, useDeleteServiceMutation } from '@/store/api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import AdminServiceModal from './AdminServiceModal';
 import Loader from '@/components/ui/Loader';
 

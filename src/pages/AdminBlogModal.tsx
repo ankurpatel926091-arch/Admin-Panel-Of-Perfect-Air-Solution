@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useGetBlogsQuery, addBlogREST, updateBlogREST, buildBlogFormData } from '@/store/api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 
 interface AdminBlogModalProps {
   isOpen: boolean;

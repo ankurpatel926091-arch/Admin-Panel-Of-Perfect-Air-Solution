@@ -1,7 +1,10 @@
 import baseApi from "./baseApi";
 
-export const getGalleryAPI = async () => {
-  const response = await baseApi.get("/gallery/get");
+export const getGalleryAPI = async (params = {}) => {
+  const response = await baseApi.get("/gallery/get", {
+    params,
+  });
+
   return response.data;
 };
 

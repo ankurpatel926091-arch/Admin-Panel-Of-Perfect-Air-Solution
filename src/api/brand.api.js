@@ -1,8 +1,11 @@
 import baseApi from "./baseApi";
 
-// Get all brands
-export const getBrands = async () => {
-  const response = await baseApi.get("/brand/get");
+// Get brands with search, status and pagination
+export const getBrands = async (params) => {
+  const response = await baseApi.get("/brand/get", {
+    params,
+  });
+
   return response.data;
 };
 

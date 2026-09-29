@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGetBlogsQuery, useDeleteBlogMutation } from '@/store/api';
-import { toast } from 'sonner';
+import { useGetBlogsQuery, useDeleteBlogMutation, useToggleBlogStatusMutation } from '@/store/api';
+import { toast } from 'react-toastify';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
 import useDebounce from '@/hooks/useDebounce';
@@ -14,27 +14,31 @@ import {
   List,
   Search,
   Image as ImageIcon,
-  Layers,
   Sparkles,
   X,
   Calendar,
   BookOpen,
-  ArrowUpRight,
-  Filter,
-  ChevronDown,
+  ArrowLeft,
+  Loader2,
+  Eye,
 } from 'lucide-react';
-
-
 
 const AdminBlogs = () => {
   const navigate = useNavigate();
-  const { data: blogs = [], isLoading } = useGetBlogsQuery();
+  const { data: blogs = [], isLoading, refetch } = useGetBlogsQuery();
   const [deleteBlog] = useDeleteBlogMutation();
+  const [toggleBlogStatus] = useToggleBlogStatusMutation();
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearch || (isLoading && Boolean(searchQuery));
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,7 +46,7 @@ const AdminBlogs = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, statusFilter]);
 
   const handleAdd = () => {
     navigate('/admin/blogs/create');
@@ -52,11 +56,36 @@ const AdminBlogs = () => {
     navigate(`/admin/blogs/edit/${blog._id || blog.id}`);
   };
 
+  const handleView = (blog: any) => {
+    navigate(`/admin/blogs/edit/${blog._id || blog.id}`, {
+      state: {
+        mode: 'view',
+      },
+    });
+  };
+
+  const handleToggleStatus = async (blog: any) => {
+    const id = blog._id || blog.id;
+    if (!id) return;
+    try {
+      setTogglingId(id);
+      await toggleBlogStatus(id).unwrap();
+      const nextStatus = blog.isActive === false;
+      toast.success(`Blog is now ${nextStatus ? 'Active' : 'Inactive'}`);
+      await refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.message || err?.message || 'Failed to update blog status');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const handleDeleteConfirm = async (id: string) => {
     try {
       setDeletingId(id);
       await deleteBlog(id).unwrap();
       toast.success('Blog deleted successfully');
+      await refetch();
     } catch {
       toast.error('Failed to delete blog');
     } finally {
@@ -65,14 +94,30 @@ const AdminBlogs = () => {
     }
   };
 
+  const counts = useMemo(() => {
+    const total = blogs.length;
+    const active = blogs.filter((b: any) => b.isActive !== false).length;
+    const inactive = blogs.filter((b: any) => b.isActive === false).length;
+    return { total, active, inactive };
+  }, [blogs]);
+
   const filteredBlogs = useMemo(() => {
+    const q = debouncedSearch.toLowerCase().trim();
     return blogs.filter((blog: any) => {
-      return (
-        debouncedSearch.trim() === '' ||
-        blog.title?.toLowerCase().includes(debouncedSearch.toLowerCase())
-      );
+      const matchSearch =
+        !q ||
+        blog.title?.toLowerCase().includes(q) ||
+        blog.author?.toLowerCase().includes(q) ||
+        blog.excerpt?.toLowerCase().includes(q);
+
+      const matchStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && blog.isActive !== false) ||
+        (statusFilter === 'inactive' && blog.isActive === false);
+
+      return matchSearch && matchStatus;
     });
-  }, [blogs, debouncedSearch]);
+  }, [blogs, debouncedSearch, statusFilter]);
 
   const paginatedBlogs = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -90,11 +135,16 @@ const AdminBlogs = () => {
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-13 h-13 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-cyan-300 shadow-inner shrink-0">
-              <FileText size={26} />
-            </div>
+            <button
+              onClick={() => navigate(-1)}
+              type="button"
+              title="Go Back"
+              className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 hover:from-[#0369A1] hover:to-cyan-500 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-95 group shrink-0"
+            >
+              <ArrowLeft size={22} className="transition-transform group-hover:-translate-x-0.5" />
+            </button>
             <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Blog Posts &amp; Guides
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm mt-0.5 font-normal">
@@ -122,7 +172,6 @@ const AdminBlogs = () => {
               <span className="text-xs sm:text-sm font-bold text-blue-900 block">
                 Total Articles
               </span>
-              
             </div>
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25">
               <FileText size={20} strokeWidth={2.2} />
@@ -130,87 +179,187 @@ const AdminBlogs = () => {
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-blue-950 tracking-tight leading-none">
-              {blogs.length}
+              {counts.total}
             </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-              Live Articles
+              Total Posts
             </span>
           </div>
         </div>
 
-        {/* Card 2: Purple / Violet Theme */}
-        <div className="bg-gradient-to-br from-purple-50/90 via-fuchsia-50/30 to-violet-50/60 rounded-2xl p-5 sm:p-6 border border-purple-200/80 shadow-2xs hover:shadow-md hover:border-purple-300 transition-all flex flex-col justify-between">
+        {/* Card 2: Emerald / Green Theme (Active) */}
+        <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/30 to-green-50/60 rounded-2xl p-5 sm:p-6 border border-emerald-200/80 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <span className="text-xs sm:text-sm font-bold text-purple-900 block">
-                Published
+              <span className="text-xs sm:text-sm font-bold text-emerald-900 block">
+                Active Posts
               </span>
             </div>
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25">
               <Sparkles size={20} strokeWidth={2.2} />
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-purple-950 tracking-tight leading-none">
-              {blogs.filter((b: any) => b.isActive !== false).length}
+            <div className="text-3xl sm:text-4xl font-black text-emerald-950 tracking-tight leading-none">
+              {counts.active}
             </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
-              Active
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+              Live &amp; Visible
             </span>
           </div>
         </div>
 
-        {/* Card 3: Emerald / Teal Theme */}
-        <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-green-50/60 rounded-2xl p-5 sm:p-6 border border-emerald-200/80 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between">
+        {/* Card 3: Slate / Inactive Theme */}
+        <div className="bg-gradient-to-br from-slate-50/90 via-gray-50/40 to-slate-100/60 rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <span className="text-xs sm:text-sm font-bold text-emerald-900 block">
-                Visual Covers
+              <span className="text-xs sm:text-sm font-bold text-slate-800 block">
+                Inactive Posts
               </span>
-            
             </div>
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-600 to-slate-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-slate-500/25">
               <ImageIcon size={20} strokeWidth={2.2} />
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-emerald-950 tracking-tight leading-none">
-              {blogs.filter((b: any) => b.image).length}
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
+              {counts.inactive}
             </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-              HD Media
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
+              Hidden / Draft
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── 3. Colorful Search & Category Filter Toolbar ── */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
-        {/* Search input */}
-        <div className="relative flex-1 min-w-[260px]">
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search articles by title or keyword..."
-            className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+      {/* ── 3. Search & Status Filter Toolbar ── */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
+        {/* Status Filter Buttons */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              statusFilter === 'all'
+                ? 'bg-[#051B30] text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>All</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                statusFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
             >
-              <X size={14} />
-            </button>
-          )}
+              {counts.total}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('active')}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              statusFilter === 'active'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>Active</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
+              {counts.active}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('inactive')}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              statusFilter === 'inactive'
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600 border border-slate-200/80'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>Inactive</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                statusFilter === 'inactive' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {counts.inactive}
+            </span>
+          </button>
         </div>
 
-        {/* View Switcher */}
-        
+        {/* Search input + View switch */}
+        <div className="flex items-center gap-3 flex-1 md:max-w-md">
+          <div className="relative flex-1">
+            {isSearching ? (
+              <Loader2
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin pointer-events-none"
+              />
+            ) : (
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+            )}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search articles by title or keyword..."
+              className="w-full pl-9 pr-14 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
+            />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              {isSearching && (
+                <Loader2 size={14} className="text-[#0284C7] animate-spin" />
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center border border-slate-200 rounded-xl p-0.5 bg-slate-50 shrink-0">
+            <button
+              type="button"
+              onClick={() => setView('table')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                view === 'table'
+                  ? 'bg-white text-[#0284C7] shadow-2xs font-bold'
+                  : 'text-slate-400 hover:text-slate-700'
+              }`}
+              title="Table View"
+            >
+              <List size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('grid')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                view === 'grid'
+                  ? 'bg-white text-[#0284C7] shadow-2xs font-bold'
+                  : 'text-slate-400 hover:text-slate-700'
+              }`}
+              title="Grid View"
+            >
+              <LayoutGrid size={16} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ── 4. Main Content Container ── */}
@@ -229,14 +378,15 @@ const AdminBlogs = () => {
             </div>
             <h3 className="text-base font-extrabold text-[#051B30]">No blog posts found</h3>
             <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
-              {searchQuery
+              {searchQuery || statusFilter !== 'all'
                 ? 'No posts matched your current search filters.'
                 : 'Start publishing HVAC insights, tips, and updates for your audience.'}
             </p>
-            {searchQuery ? (
+            {searchQuery || statusFilter !== 'all' ? (
               <button
                 onClick={() => {
                   setSearchQuery('');
+                  setStatusFilter('all');
                 }}
                 className="mt-2 text-xs font-bold text-[#0284C7] hover:underline cursor-pointer"
               >
@@ -266,14 +416,17 @@ const AdminBlogs = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginatedBlogs.map((blog: any) => {
+                  const blogId = blog._id || blog.id;
                   const rawPreview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
                   const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                  const isConfirming = confirmDeleteId === blog._id;
-                  const isDeleting = deletingId === blog._id;
+                  const isConfirming = confirmDeleteId === blogId;
+                  const isDeleting = deletingId === blogId;
+                  const isToggling = togglingId === blogId;
+                  const isActive = blog.isActive !== false;
 
                   return (
                     <tr
-                      key={blog._id}
+                      key={blogId}
                       className="hover:bg-gradient-to-r hover:from-sky-50/40 hover:to-transparent transition-colors group"
                     >
                       {/* Cover Thumbnail */}
@@ -319,13 +472,13 @@ const AdminBlogs = () => {
                         </p>
                       </td>
 
-                      {/* Colorful Action Buttons */}
+                      {/* Actions Column: Active/Inactive Button BEFORE View */}
                       <td className="px-6 py-4 align-middle text-right">
                         {isConfirming ? (
                           <div className="inline-flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1.5 shadow-sm">
                             <span className="text-xs text-rose-600 font-bold">Delete?</span>
                             <button
-                              onClick={() => handleDeleteConfirm(blog._id)}
+                              onClick={() => handleDeleteConfirm(blogId)}
                               disabled={isDeleting}
                               className="text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-2.5 py-1 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                             >
@@ -340,6 +493,42 @@ const AdminBlogs = () => {
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
+                            {/* 1. Active / Inactive Button (Before View) */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(blog)}
+                              disabled={isToggling}
+                              title={isActive ? 'Click to mark as Inactive' : 'Click to mark as Active'}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer border shadow-2xs active:scale-95 disabled:opacity-60 ${
+                                isActive
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/90 hover:bg-emerald-100 hover:border-emerald-300'
+                                  : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 hover:text-slate-700'
+                              }`}
+                            >
+                              {isToggling ? (
+                                <Loader2 size={12} className="animate-spin text-current" />
+                              ) : (
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    isActive
+                                      ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50'
+                                      : 'bg-slate-400'
+                                  }`}
+                                />
+                              )}
+                              <span>{isActive ? 'Active' : 'Inactive'}</span>
+                            </button>
+
+                            {/* 2. View Button */}
+                            <button
+                              onClick={() => handleView(blog)}
+                              title="View Article"
+                              className="p-2.5 text-blue-600 bg-blue-50/80 hover:bg-blue-600 hover:text-white border border-blue-200/80 rounded-xl transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm"
+                            >
+                              <Eye size={14} />
+                            </button>
+
+                            {/* 3. Edit Button */}
                             <button
                               onClick={() => handleEdit(blog)}
                               title="Edit Article"
@@ -347,8 +536,10 @@ const AdminBlogs = () => {
                             >
                               <Pencil size={14} />
                             </button>
+
+                            {/* 4. Delete Button */}
                             <button
-                              onClick={() => setConfirmDeleteId(blog._id)}
+                              onClick={() => setConfirmDeleteId(blogId)}
                               title="Delete Article"
                               className="p-2.5 text-rose-600 bg-rose-50/80 hover:bg-rose-600 hover:text-white border border-rose-200/80 rounded-xl transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm"
                             >
@@ -367,14 +558,17 @@ const AdminBlogs = () => {
           /* ── Colorful Grid View ── */
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {paginatedBlogs.map((blog: any) => {
+              const blogId = blog._id || blog.id;
               const rawPreview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
               const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-              const isConfirming = confirmDeleteId === blog._id;
-              const isDeleting = deletingId === blog._id;
+              const isConfirming = confirmDeleteId === blogId;
+              const isDeleting = deletingId === blogId;
+              const isToggling = togglingId === blogId;
+              const isActive = blog.isActive !== false;
 
               return (
                 <div
-                  key={blog._id}
+                  key={blogId}
                   className="group relative bg-white rounded-2xl border border-slate-200/90 hover:border-blue-300 hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col justify-between"
                 >
                   <div>
@@ -391,6 +585,19 @@ const AdminBlogs = () => {
                           <FileText size={32} />
                         </div>
                       )}
+
+                      {/* Status pill overlay on card */}
+                      <div className="absolute top-3 right-3">
+                        <span
+                          className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-xs border ${
+                            isActive
+                              ? 'bg-emerald-50/95 text-emerald-700 border-emerald-200'
+                              : 'bg-slate-100/95 text-slate-600 border-slate-300'
+                          }`}
+                        >
+                          {isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Content Body */}
@@ -419,7 +626,7 @@ const AdminBlogs = () => {
                     {isConfirming ? (
                       <div className="flex items-center gap-1.5">
                         <button
-                          onClick={() => handleDeleteConfirm(blog._id)}
+                          onClick={() => handleDeleteConfirm(blogId)}
                           disabled={isDeleting}
                           className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
                         >
@@ -433,7 +640,41 @@ const AdminBlogs = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {/* 1. Active / Inactive Button (Before View) */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(blog)}
+                          disabled={isToggling}
+                          title={isActive ? 'Click to mark as Inactive' : 'Click to mark as Active'}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all duration-150 cursor-pointer border shadow-2xs active:scale-95 disabled:opacity-60 ${
+                            isActive
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                          }`}
+                        >
+                          {isToggling ? (
+                            <Loader2 size={11} className="animate-spin text-current" />
+                          ) : (
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isActive ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-slate-400'
+                              }`}
+                            />
+                          )}
+                          <span>{isActive ? 'Active' : 'Inactive'}</span>
+                        </button>
+
+                        {/* 2. View Button */}
+                        <button
+                          onClick={() => handleView(blog)}
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="View Blog"
+                        >
+                          <Eye size={15} />
+                        </button>
+
+                        {/* 3. Edit Button */}
                         <button
                           onClick={() => handleEdit(blog)}
                           className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
@@ -441,8 +682,10 @@ const AdminBlogs = () => {
                         >
                           <Pencil size={15} />
                         </button>
+
+                        {/* 4. Delete Button */}
                         <button
-                          onClick={() => setConfirmDeleteId(blog._id)}
+                          onClick={() => setConfirmDeleteId(blogId)}
                           className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete Blog"
                         >

@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { getBrands, deleteBrand } from "@/api/brand.api";
-import { toast } from "sonner";
+import { toast } from "react-toastify";
 import AdminBrandModal from "./AdminBrandModal";
 import Loader from "@/components/ui/Loader";
 import AdminPagination from "@/components/AdminPagination";
@@ -15,14 +16,19 @@ import {
   X,
   ShieldCheck,
   CheckCircle2,
+  ArrowLeft,
+  Loader2,
 } from "lucide-react";
 
 const AdminBrands = () => {
+  const navigate = useNavigate();
   // ===============================
   // STATES
   // ===============================
 
   const [brands, setBrands] = useState<any[]>([]);
+  const [totalBrands, setTotalBrands] = useState(0);
+  const [counts, setCounts] = useState({ total: 0, active: 0, inactive: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,24 +39,42 @@ const AdminBrands = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const isSearching = searchQuery !== debouncedSearch || (isLoading && Boolean(searchQuery));
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const itemsPerPage = 12;
+  const itemsPerPage = 11;
 
   // ===============================
-  // GET BRANDS API
+  // GET BRANDS API (BACKEND PARAMS)
   // ===============================
 
   const fetchBrands = async () => {
     try {
       setIsLoading(true);
 
-      const response = await getBrands();
+      const params: any = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
 
-      console.log("Brands API Response:", response);
+      if (debouncedSearch) {
+        params.name = debouncedSearch;
+      }
+
+      if (statusFilter !== "all") {
+        params.status = statusFilter;
+      }
+
+      const response = await getBrands(params);
 
       setBrands(response.data || []);
+      setTotalBrands(response.total ?? 0);
+      setCounts({
+        total: response.totalCount ?? response.total ?? 0,
+        active: response.activeCount ?? 0,
+        inactive: response.inactiveCount ?? 0,
+      });
     } catch (error: any) {
       console.error("Get Brands Error:", error);
 
@@ -62,61 +86,24 @@ const AdminBrands = () => {
     }
   };
 
-  // ===============================
-  // INITIAL API CALL
-  // ===============================
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      fetchBrands();
+    }
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchBrands();
-  }, []);
+  }, [currentPage]);
 
-  // ===============================
-  // RESET PAGE ON SEARCH OR FILTER
-  // ===============================
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch, statusFilter]);
-
-  // ===============================
-  // COUNTS & FILTER
-  // ===============================
-
-  const activeBrandsCount = useMemo(
-    () => brands.filter((brand: any) => Boolean(brand.isActive)).length,
-    [brands]
-  );
-
-  const inactiveBrandsCount = useMemo(
-    () => brands.filter((brand: any) => !brand.isActive).length,
-    [brands]
-  );
-
-  const filteredBrands = useMemo(() => {
-    const query = debouncedSearch.toLowerCase().trim();
-
-    return brands.filter((brand: any) => {
-      const name = (brand.name || "").toLowerCase();
-      const matchesSearch = query === "" || name.includes(query);
-      const isActive = Boolean(brand.isActive);
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && isActive) ||
-        (statusFilter === "inactive" && !isActive);
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [brands, debouncedSearch, statusFilter]);
-
-  // ===============================
-  // PAGINATION
-  // ===============================
-
-  const paginatedBrands = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-
-    return filteredBrands.slice(start, start + itemsPerPage);
-  }, [filteredBrands, currentPage]);
+  // Client safety filter so non-matching brands never render
+  const displayBrands = useMemo(() => {
+    const q = debouncedSearch.toLowerCase().trim();
+    if (!q) return brands;
+    return brands.filter((b: any) => b.name?.toLowerCase().includes(q));
+  }, [brands, debouncedSearch]);
 
   // ===============================
   // ADD BRAND
@@ -188,9 +175,14 @@ const AdminBrands = () => {
 
           <div className="flex items-center gap-4">
 
-            <div className="w-13 h-13 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-cyan-300 shadow-inner shrink-0">
-              <Tags size={26} />
-            </div>
+            <button
+              onClick={() => navigate(-1)}
+              type="button"
+              title="Go Back"
+              className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 hover:from-[#0369A1] hover:to-cyan-500 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-95 group shrink-0"
+            >
+              <ArrowLeft size={22} className="transition-transform group-hover:-translate-x-0.5" />
+            </button>
 
             <div>
 
@@ -249,7 +241,7 @@ const AdminBrands = () => {
           <div className="mt-4 flex items-baseline justify-between">
 
             <div className="text-3xl sm:text-4xl font-black text-blue-950">
-              {brands.length}
+              {counts.total}
             </div>
 
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
@@ -281,7 +273,7 @@ const AdminBrands = () => {
           <div className="mt-4 flex items-baseline justify-between">
 
             <div className="text-3xl sm:text-4xl font-black text-emerald-950">
-              {brands.filter((brand: any) => brand.isActive).length}
+              {counts.active}
             </div>
 
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
@@ -313,11 +305,9 @@ const AdminBrands = () => {
           <div className="mt-4 flex items-baseline justify-between">
 
             <div className="text-3xl sm:text-4xl font-black text-purple-950">
-              {brands.length
+              {counts.total
                 ? Math.round(
-                    (brands.filter((brand: any) => brand.isActive).length /
-                      brands.length) *
-                      100
+                    (counts.active / counts.total) * 100
                   )
                 : 0}
               %
@@ -358,7 +348,7 @@ const AdminBrands = () => {
                   : "bg-slate-200 text-slate-700"
               }`}
             >
-              {brands.length}
+              {counts.total}
             </span>
           </button>
 
@@ -380,7 +370,7 @@ const AdminBrands = () => {
                   : "bg-emerald-100 text-emerald-800"
               }`}
             >
-              {activeBrandsCount}
+              {counts.active}
             </span>
           </button>
 
@@ -402,7 +392,7 @@ const AdminBrands = () => {
                   : "bg-slate-200 text-slate-700"
               }`}
             >
-              {inactiveBrandsCount}
+              {counts.inactive}
             </span>
           </button>
         </div>
@@ -410,35 +400,49 @@ const AdminBrands = () => {
         {/* Search Input */}
         <div className="flex items-center gap-3 flex-1 md:max-w-md">
           <div className="relative flex-1">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-            />
+            {isSearching ? (
+              <Loader2
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin"
+              />
+            ) : (
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+            )}
 
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search brands by name..."
-              className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
+              className="w-full pl-9 pr-14 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all"
             />
 
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            )}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              {isSearching && (
+                <Loader2 size={15} className="text-[#0284C7] animate-spin" />
+              )}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="text-xs font-bold text-slate-500 shrink-0 hidden sm:block">
             Showing{" "}
             <span className="text-slate-900 font-extrabold">
-              {filteredBrands.length}
+              {displayBrands.length}
             </span>{" "}
-            of {brands.length}
+            of {debouncedSearch ? displayBrands.length : totalBrands}
           </div>
         </div>
 
@@ -457,7 +461,7 @@ const AdminBrands = () => {
           </p>
         </div>
 
-      ) : filteredBrands.length === 0 ? (
+      ) : displayBrands.length === 0 ? (
 
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white rounded-2xl border border-slate-200/80">
 
@@ -504,7 +508,7 @@ const AdminBrands = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
 
-            {paginatedBrands.map((brand: any) => (
+            {displayBrands.map((brand: any) => (
 
               <BrandCard
                 key={brand._id}
@@ -559,13 +563,13 @@ const AdminBrands = () => {
 
           {/* Pagination */}
 
-          {filteredBrands.length > itemsPerPage && (
+          {totalBrands > itemsPerPage && (
 
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
 
               <AdminPagination
                 currentPage={currentPage}
-                totalItems={filteredBrands.length}
+                totalItems={debouncedSearch ? displayBrands.length : totalBrands}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
               />

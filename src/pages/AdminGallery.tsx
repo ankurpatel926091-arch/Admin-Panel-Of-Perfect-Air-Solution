@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   createGalleryAPI,
   getGalleryAPI,
@@ -7,11 +8,12 @@ import {
   toggleGalleryStatusAPI,
 } from '@/api/gallery.api';
 import { getGalleryCategories } from '@/api/galleryCategory.api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
 import {
   Images,
+  ArrowLeft,
   Plus,
   Trash2,
   Pencil,
@@ -67,6 +69,7 @@ const getCategoryBadge = (category: string) => {
 };
 
 const AdminGallery: React.FC = () => {
+  const navigate = useNavigate();
   const [galleryList, setGalleryList] = useState<any[]>([]);
   const [dbCategories, setDbCategories] = useState<{ _id: string; title: string; slug?: string; isActive?: boolean }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,21 +90,14 @@ const AdminGallery: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [counts, setCounts] = useState({ total: 0, active: 0, inactive: 0 });
   const itemsPerPage = 8;
 
-  // Status Counts
-  const activeCount = useMemo(() => {
-    return galleryList.filter((item: any) => item.isActive !== false).length;
-  }, [galleryList]);
-
-  const inactiveCount = useMemo(() => {
-    return galleryList.filter((item: any) => item.isActive === false).length;
-  }, [galleryList]);
-
   const activePercentage = useMemo(() => {
-    if (galleryList.length === 0) return 0;
-    return Math.round((activeCount / galleryList.length) * 100);
-  }, [galleryList.length, activeCount]);
+    if (counts.total === 0) return 0;
+    return Math.round((counts.active / counts.total) * 100);
+  }, [counts.total, counts.active]);
 
   // Local File Upload & Modal State
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -133,27 +129,34 @@ const AdminGallery: React.FC = () => {
     return item.galleryCategory || item.category || '';
   };
 
-  const fetchAllData = async () => {
+  const fetchGalleryList = async () => {
     try {
       setIsLoading(true);
-      const [catRes, galRes] = await Promise.allSettled([
-        getGalleryCategories(),
-        getGalleryAPI(),
-      ]);
+      const params: any = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
 
-      if (catRes.status === 'fulfilled') {
-        const catList = catRes.value?.galleryCategories || catRes.value?.categories || [];
-        if (Array.isArray(catList)) {
-          setDbCategories(catList);
-        }
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
       }
 
-      if (galRes.status === 'fulfilled') {
-        const galList = galRes.value?.gallery || [];
-        if (Array.isArray(galList)) {
-          setGalleryList(galList);
-        }
+      if (selectedCategory !== 'all') {
+        params.category = selectedCategory;
       }
+
+      const res = await getGalleryAPI(params);
+      const items = (res?.gallery && Array.isArray(res.gallery)) ? res.gallery : [];
+      setGalleryList(items);
+
+      const calcActive = items.filter((it: any) => it.isActive !== false).length;
+      const calcInactive = items.filter((it: any) => it.isActive === false).length;
+
+setTotalItems(res.filteredTotal ?? res.total ?? items.length);      setCounts((prev) => ({
+        total: res.totalCount ?? res.total ?? items.length,
+        active: res.activeCount !== undefined ? res.activeCount : (statusFilter === 'all' ? calcActive : prev.active),
+        inactive: res.inactiveCount !== undefined ? res.inactiveCount : (statusFilter === 'all' ? calcInactive : prev.inactive),
+      }));
     } catch (err) {
       console.error('Failed to load gallery data:', err);
     } finally {
@@ -161,17 +164,28 @@ const AdminGallery: React.FC = () => {
     }
   };
 
-  // Run ONCE on mount only (prevent StrictMode double call in dev)
-  const hasFetchedRef = useRef(false);
   useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-    fetchAllData();
-  }, []);
+    fetchGalleryList();
+  }, [currentPage, selectedCategory, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, statusFilter]);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const catRes = await getGalleryCategories();
+        const catList = catRes?.galleryCategories || catRes?.categories || [];
+        if (Array.isArray(catList)) {
+          setDbCategories(catList);
+        }
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      }
+    };
+    fetchCats();
+  }, []);
 
   const applySelectedFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -273,6 +287,7 @@ const AdminGallery: React.FC = () => {
     try {
       await toggleGalleryStatusAPI(id);
       toast.success(`Photo marked as ${newStatus ? 'Active' : 'Inactive'}`);
+      fetchGalleryList();
     } catch (err: any) {
       // Revert on error
       setGalleryList((prev) =>
@@ -285,8 +300,8 @@ const AdminGallery: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteGalleryAPI(id);
-      setGalleryList((prev) => prev.filter((item) => (item._id || item.id) !== id));
       toast.success('Gallery item deleted successfully');
+      fetchGalleryList();
     } catch {
       toast.error('Failed to delete gallery item');
     } finally {
@@ -325,12 +340,7 @@ const AdminGallery: React.FC = () => {
       }
 
       handleCloseModal();
-
-      // Refresh gallery list
-      const galRes = await getGalleryAPI();
-      if (galRes?.gallery && Array.isArray(galRes.gallery)) {
-        setGalleryList(galRes.gallery);
-      }
+      fetchGalleryList();
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Failed to save photo');
@@ -393,52 +403,20 @@ const AdminGallery: React.FC = () => {
       }
     });
 
-    galleryList.forEach((item: any) => {
-      const catName = getItemCategory(item).trim();
-      if (catName && !seen.has(catName.toLowerCase())) {
-        seen.add(catName.toLowerCase());
-        list.push({ id: catName.toLowerCase(), label: catName });
-      }
-    });
-
     return list;
-  }, [dbCategories, galleryList]);
-
-  const filteredItems = useMemo(() => {
-    return galleryList.filter((item: any) => {
-      const itemCat = getItemCategory(item).toLowerCase();
-      const matchesCategory =
-        selectedCategory === 'all' ||
-        itemCat === selectedCategory.toLowerCase() ||
-        itemCat.includes(selectedCategory.toLowerCase()) ||
-        selectedCategory.toLowerCase().includes(itemCat);
-
-      const isActive = item.isActive !== false;
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && isActive) ||
-        (statusFilter === 'inactive' && !isActive);
-
-      return matchesCategory && matchesStatus;
-    });
-  }, [galleryList, selectedCategory, statusFilter]);
-
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredItems.slice(start, start + itemsPerPage);
-  }, [filteredItems, currentPage, itemsPerPage]);
+  }, [dbCategories]);
 
   // Lightbox Navigation (Next / Prev / Keyboard Left & Right arrow keys)
   const handlePrevImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (previewIndex === null || filteredItems.length === 0) return;
-    setPreviewIndex((prev) => (prev === null || prev === 0 ? filteredItems.length - 1 : prev - 1));
+    if (previewIndex === null || galleryList.length === 0) return;
+    setPreviewIndex((prev) => (prev === null || prev === 0 ? galleryList.length - 1 : prev - 1));
   };
 
   const handleNextImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (previewIndex === null || filteredItems.length === 0) return;
-    setPreviewIndex((prev) => (prev === null || prev === filteredItems.length - 1 ? 0 : prev + 1));
+    if (previewIndex === null || galleryList.length === 0) return;
+    setPreviewIndex((prev) => (prev === null || prev === galleryList.length - 1 ? 0 : prev + 1));
   };
 
   useEffect(() => {
@@ -446,10 +424,10 @@ const AdminGallery: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setPreviewIndex((prev) => (prev === null || prev === 0 ? filteredItems.length - 1 : prev - 1));
+        setPreviewIndex((prev) => (prev === null || prev === 0 ? galleryList.length - 1 : prev - 1));
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setPreviewIndex((prev) => (prev === null || prev === filteredItems.length - 1 ? 0 : prev + 1));
+        setPreviewIndex((prev) => (prev === null || prev === galleryList.length - 1 ? 0 : prev + 1));
       } else if (e.key === 'Escape') {
         e.preventDefault();
         setPreviewIndex(null);
@@ -457,7 +435,7 @@ const AdminGallery: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewIndex, filteredItems.length]);
+  }, [previewIndex, galleryList.length]);
 
   return (
     <div className="space-y-6 font-sans pb-10">
@@ -469,9 +447,14 @@ const AdminGallery: React.FC = () => {
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-13 h-13 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-cyan-300 shadow-inner shrink-0">
-              <Images size={26} />
-            </div>
+            <button
+              onClick={() => navigate(-1)}
+              type="button"
+              title="Go Back"
+              className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 hover:from-[#0369A1] hover:to-cyan-500 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-95 group shrink-0"
+            >
+              <ArrowLeft size={22} className="transition-transform group-hover:-translate-x-0.5" />
+            </button>
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Installation Gallery
@@ -506,7 +489,7 @@ const AdminGallery: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-blue-950">{galleryList.length}</div>
+            <div className="text-3xl sm:text-4xl font-black text-blue-950">{counts.total}</div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
               Live Photos
             </span>
@@ -542,7 +525,7 @@ const AdminGallery: React.FC = () => {
           <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-emerald-950">{activePercentage}%</div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-              {activeCount} Active &bull; {inactiveCount} Inactive
+              {counts.active} Active &bull; {counts.inactive} Inactive
             </span>
           </div>
         </div>
@@ -567,7 +550,7 @@ const AdminGallery: React.FC = () => {
                 statusFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}
             >
-              {galleryList.length}
+              {counts.total}
             </span>
           </button>
 
@@ -591,7 +574,7 @@ const AdminGallery: React.FC = () => {
                 statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
               }`}
             >
-              {activeCount}
+              {counts.active}
             </span>
           </button>
 
@@ -615,7 +598,7 @@ const AdminGallery: React.FC = () => {
                 statusFilter === 'inactive' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}
             >
-              {inactiveCount}
+              {counts.inactive}
             </span>
           </button>
         </div>
@@ -631,25 +614,11 @@ const AdminGallery: React.FC = () => {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full pl-9 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all cursor-pointer appearance-none shadow-2xs"
             >
-              {categoryOptions.map((cat) => {
-                const count =
-                  cat.id === 'all'
-                    ? galleryList.length
-                    : galleryList.filter((item: any) => {
-                        const itCat = getItemCategory(item).toLowerCase();
-                        return (
-                          itCat === cat.id.toLowerCase() ||
-                          itCat === cat.label.toLowerCase() ||
-                          itCat.includes(cat.id.toLowerCase())
-                        );
-                      }).length;
-
-                return (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.label} ({count})
-                  </option>
-                );
-              })}
+              {categoryOptions.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.label}
+                </option>
+              ))}
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
               <ChevronDown size={15} />
@@ -664,7 +633,7 @@ const AdminGallery: React.FC = () => {
           <Loader />
           <p className="text-xs sm:text-sm font-semibold text-slate-400 animate-pulse">Loading gallery images...</p>
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : galleryList.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 py-20 px-6 flex flex-col items-center justify-center text-center gap-3">
           <div className="w-16 h-16 rounded-2xl bg-sky-50 text-[#0284C7] flex items-center justify-center shadow-md">
             <Images size={28} />
@@ -687,8 +656,7 @@ const AdminGallery: React.FC = () => {
         <div className="space-y-6">
           {/* ── Pure Photo Grid View (Full uncropped photos) ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-            {paginatedItems.map((item: any, index: number) => {
-              const globalIndex = (currentPage - 1) * itemsPerPage + index;
+            {galleryList.map((item: any, index: number) => {
               const itemId = item._id || item.id || `gallery-${index}`;
               const isConfirming = confirmDeleteId === itemId;
               const imgUrl = getImageUrl(item);
@@ -699,7 +667,7 @@ const AdminGallery: React.FC = () => {
               return (
                 <div
                   key={itemId}
-                  onClick={() => setPreviewIndex(globalIndex)}
+                  onClick={() => setPreviewIndex(index)}
                   title="Click to view photo"
                   className={`group relative aspect-[4/3] w-full rounded-2xl border shadow-2xs hover:shadow-xl transition-all duration-300 overflow-hidden bg-slate-950 flex items-center justify-center cursor-pointer ${
                     !isItemActive
@@ -803,15 +771,28 @@ const AdminGallery: React.FC = () => {
             })}
           </div>
 
-          {/* Pagination Controls */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-            <AdminPagination
-              currentPage={currentPage}
-              totalItems={filteredItems.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          </div>
+         {/* Pagination Controls */}
+{totalItems > 0 && (
+  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+      
+      <p className="text-sm font-semibold text-slate-500">
+        Showing <span className="text-slate-800">{galleryList.length}</span> of{' '}
+        <span className="text-slate-800">{totalItems}</span>
+      </p>
+
+      {totalItems > itemsPerPage && (
+        <AdminPagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
+      )}
+
+    </div>
+  </div>
+)}
         </div>
       )}
 
@@ -1002,7 +983,7 @@ const AdminGallery: React.FC = () => {
           </button>
 
           {/* Left / Previous Arrow Button */}
-          {filteredItems.length > 1 && (
+          {galleryList.length > 1 && (
             <button
               onClick={handlePrevImage}
               className="absolute left-4 top-1/2 -translate-y-1/2 z-50 w-11 h-11 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md transition-all cursor-pointer shadow-xl border border-white/20 flex items-center justify-center hover:scale-110 active:scale-95 group"
@@ -1013,7 +994,7 @@ const AdminGallery: React.FC = () => {
           )}
 
           {/* Right / Next Arrow Button */}
-          {filteredItems.length > 1 && (
+          {galleryList.length > 1 && (
             <button
               onClick={handleNextImage}
               className="absolute right-4 top-1/2 -translate-y-1/2 z-50 w-11 h-11 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md transition-all cursor-pointer shadow-xl border border-white/20 flex items-center justify-center hover:scale-110 active:scale-95 group"
@@ -1024,19 +1005,19 @@ const AdminGallery: React.FC = () => {
           )}
 
           {/* Image Display - Uniform Fixed Height and Width */}
-          {previewIndex !== null && filteredItems[previewIndex] && (
+          {previewIndex !== null && galleryList[previewIndex] && (
             <div className="relative w-full h-full rounded-2xl overflow-hidden flex items-center justify-center">
               <img
-                key={filteredItems[previewIndex]._id || filteredItems[previewIndex].id || previewIndex}
-                src={getImageUrl(filteredItems[previewIndex])}
+                key={galleryList[previewIndex]._id || galleryList[previewIndex].id || previewIndex}
+                src={getImageUrl(galleryList[previewIndex])}
                 alt="Enlarged photo preview"
                 className="max-w-full max-h-full object-contain select-none transition-all duration-300"
               />
 
               {/* Photo Counter Badge */}
-              {filteredItems.length > 1 && (
+              {galleryList.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white/90 text-xs font-semibold border border-white/15 pointer-events-none shadow-md">
-                  {previewIndex + 1} / {filteredItems.length}
+                  {previewIndex + 1} / {galleryList.length}
                 </div>
               )}
             </div>

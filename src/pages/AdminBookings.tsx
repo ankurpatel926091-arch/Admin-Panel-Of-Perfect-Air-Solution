@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useDeleteBookingMutation, useGetBookingsQuery } from '@/store/api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import Loader from '@/components/ui/Loader';
 
 const serviceLabelMap: Record<string, string> = {

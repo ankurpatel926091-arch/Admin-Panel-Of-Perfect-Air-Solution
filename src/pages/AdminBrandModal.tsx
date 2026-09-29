@@ -11,7 +11,7 @@ import {
   updateBrand,
 } from "@/api/brand.api";
 
-import { toast } from "sonner";
+import { toast } from "react-toastify";
 import { Tag, UploadCloud, Check, X, Trash2 } from "lucide-react";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 
@@ -265,7 +265,7 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
       open={isOpen}
       onOpenChange={onClose}
     >
-      <DialogContent className="max-w-md p-0 gap-0 bg-white rounded-2xl overflow-hidden border border-slate-200/90 shadow-2xl">
+      <DialogContent className="max-w-[480px] p-0 gap-0 bg-white rounded-2xl overflow-hidden border border-slate-200/90 shadow-2xl">
 
         {/* =========================================
             HEADER
@@ -330,7 +330,7 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
               </div>
 
               <ToggleSwitch
-                size="md"
+                size="sm"
                 checked={isActive}
                 onChange={setIsActive}
                 ariaLabel="Toggle active brand status"
@@ -342,15 +342,15 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
             ===================================== */}
             {previewUrl ? (
               <div className="relative rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
-                <div className="flex items-center justify-center p-6 min-h-[150px] bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]">
+                <div className="flex items-center justify-center p-4 min-h-[120px] bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]">
                   <img
                     src={previewUrl}
                     alt="Brand preview"
-                    className="max-h-28 max-w-full object-contain drop-shadow-sm transition-transform hover:scale-105"
+                    className="max-h-20 max-w-[70%] object-contain drop-shadow-sm transition-transform hover:scale-105"
                   />
                 </div>
 
-                <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-200 bg-white">
+                <div className="px-3 py-2 border-t border-slate-200 bg-white space-y-1.5">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
                       <Check size={12} strokeWidth={3} />
@@ -363,13 +363,13 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                  <div className="flex items-center gap-1 pl-7">
                     <button
                       type="button"
                       onClick={() =>
                         fileInputRef.current?.click()
                       }
-                      className="text-xs font-semibold text-slate-600 hover:text-[#0284C7] px-2.5 py-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                      className="text-xs font-semibold text-slate-600 hover:text-[#0284C7] px-2 py-0.5 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                     >
                       Replace
                     </button>
@@ -377,7 +377,7 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
                     <button
                       type="button"
                       onClick={handleRemoveImage}
-                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2.5 py-1 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2 py-0.5 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                     >
                       Remove
                     </button>
@@ -436,12 +436,12 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
           {/* =========================================
               FOOTER
           ========================================= */}
-          <div className="px-6 py-4 flex items-center justify-end gap-2.5 border-t border-slate-100 bg-slate-50/50">
+          <div className="px-5 py-4 flex items-center justify-end gap-2.5 border-t border-slate-100 bg-slate-50/50">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
             >
               Cancel
             </button>
@@ -449,7 +449,7 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#0284C7] to-[#0369A1] hover:from-[#0369A1] hover:to-[#075985] text-white text-xs font-bold rounded-xl shadow-md shadow-sky-600/20 hover:shadow-lg transition-all duration-200 disabled:opacity-60 active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#0284C7] to-[#0369A1] hover:from-[#0369A1] hover:to-[#075985] text-white text-xs font-bold rounded-xl shadow-md shadow-sky-600/20 hover:shadow-lg transition-all duration-200 disabled:opacity-60 active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0"
             >
               {isLoading ? (
                 <>
@@ -462,7 +462,7 @@ const AdminBrandModal: React.FC<AdminBrandModalProps> = ({
                   <span>
                     {isEditing
                       ? "Update Brand"
-                      : "Save Brand"}
+                      : "Save"}
                   </span>
                 </>
               )}

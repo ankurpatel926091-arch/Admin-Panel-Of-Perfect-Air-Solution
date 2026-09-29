@@ -5,7 +5,7 @@ export const createContact = async (data) => {
   return response.data;
 };
 
-export const getContacts = async () => {
-  const response = await baseApi.get("/contact/get");
+export const getContacts = async (params) => {
+  const response = await baseApi.get("/contact/get", { params });
   return response.data;
 };

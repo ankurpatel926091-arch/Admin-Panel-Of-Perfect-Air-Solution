@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useGetServicesQuery, addServiceREST, updateServiceREST, buildServiceFormData } from '@/store/api';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 
 interface AdminServiceModalProps {
   isOpen: boolean;

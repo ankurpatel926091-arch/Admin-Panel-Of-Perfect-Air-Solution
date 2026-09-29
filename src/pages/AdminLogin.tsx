@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAdminAuth } from '@/context/AdminAuthContext';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import { Eye, EyeOff, Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
 import perfectAirLogo from '../assets/Perfect Air Logo.png';
 

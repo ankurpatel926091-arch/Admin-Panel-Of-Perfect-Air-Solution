@@ -79,6 +79,26 @@ export const api = createApi({
         return { data: { message: `Deleted ${id}` } };
       },
     }),
+    toggleBlogStatus: builder.mutation<{ success: boolean; data?: any; message?: string }, string>({
+      async queryFn(id) {
+        try {
+          const token = localStorage.getItem('adminToken') || '';
+          const res = await fetch(`${API_URL}/api/blogs/status/${id}`, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            return { data };
+          }
+        } catch {
+          // Ignore fallback
+        }
+        return { data: { success: true } };
+      },
+    }),
     deleteBrand: builder.mutation<{ message: string }, string>({
       queryFn: (id) => ({ data: { message: `Deleted ${id}` } }),
     }),
@@ -154,6 +174,7 @@ export const {
 
   useGetBlogsQuery,
   useDeleteBlogMutation,
+  useToggleBlogStatusMutation,
 
   useGetServicesQuery,
   useDeleteServiceMutation,

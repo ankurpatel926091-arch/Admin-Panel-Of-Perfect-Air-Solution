@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { useGetBlogsQuery, addBlogREST, updateBlogREST, buildBlogFormData } from '@/store/api';
 import CKEditorComponent from '@/components/CKEditorComponent';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import {
   ArrowLeft,
   UploadCloud,
@@ -22,6 +22,8 @@ const AdminBlogEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
+  const location = useLocation();
+  console.log(location.state?.mode)
 
   const { data: blogs = [], refetch } = useGetBlogsQuery();
 
@@ -56,6 +58,12 @@ const AdminBlogEditor: React.FC = () => {
       }
     }
   }, [id, isEditing, blogs]);
+
+  useEffect(()=>{
+    if(location.state?.mode){
+      setActiveView('preview')
+    }
+  },[])
 
   // Handle image files
   const applyFile = (file: File) => {
@@ -140,7 +148,7 @@ const AdminBlogEditor: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 font-sans pb-16 max-w-6xl mx-auto">
+    <div className="space-y-6 font-sans pb-16 max-w-full mx-auto">
       {/* ── Top Header Navigation Bar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div className="flex items-center gap-3">

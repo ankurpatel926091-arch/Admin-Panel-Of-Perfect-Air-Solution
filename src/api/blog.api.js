@@ -32,3 +32,8 @@ export const deleteBlogAPI = async (id) => {
   const response = await baseApi.delete(`/blogs/${id}`);
   return response.data;
 };
+
+export const toggleBlogStatusAPI = async (id) => {
+  const response = await baseApi.patch(`/blogs/status/${id}`);
+  return response.data;
+};
