@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBrands, deleteBrand } from "@/api/brand.api";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import AdminBrandModal from "./AdminBrandModal";
 import Loader from "@/components/ui/Loader";
 import AdminPagination from "@/components/AdminPagination";
@@ -35,7 +36,6 @@ const AdminBrands = () => {
   const [selectedBrand, setSelectedBrand] = useState<any>(null);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
@@ -128,24 +128,43 @@ const AdminBrands = () => {
   // ===============================
 
   const handleDeleteConfirm = async (id: string) => {
+    const result = await Swal.fire({
+      title: "Delete brand?",
+      text: "This brand will be permanently removed.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#0284C7",
+      cancelButtonColor: "#64748B",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       setDeletingId(id);
 
       await deleteBrand(id);
-
-      toast.success("Brand removed successfully");
-
-      // Refresh brands
       await fetchBrands();
+
+      await Swal.fire({
+        title: "Deleted!",
+        text: "Brand removed successfully.",
+        icon: "success",
+        confirmButtonColor: "#0284C7",
+      });
     } catch (error: any) {
       console.error("Delete Brand Error:", error);
 
-      toast.error(
-        error?.response?.data?.message || "Failed to delete brand"
-      );
+      await Swal.fire({
+        title: "Delete failed",
+        text: error?.response?.data?.message || "Failed to delete brand.",
+        icon: "error",
+        confirmButtonColor: "#0284C7",
+      });
     } finally {
       setDeletingId(null);
-      setConfirmDeleteId(null);
     }
   };
 
@@ -514,16 +533,9 @@ const AdminBrands = () => {
                 key={brand._id}
                 brand={brand}
                 isDeleting={deletingId === brand._id}
-                confirmingDelete={confirmDeleteId === brand._id}
                 onEdit={() => handleEdit(brand)}
-                onDeleteRequest={() =>
-                  setConfirmDeleteId(brand._id)
-                }
-                onDeleteConfirm={() =>
+                onDelete={() =>
                   handleDeleteConfirm(brand._id)
-                }
-                onDeleteCancel={() =>
-                  setConfirmDeleteId(null)
                 }
               />
 
@@ -605,21 +617,15 @@ const AdminBrands = () => {
 interface BrandCardProps {
   brand: any;
   isDeleting: boolean;
-  confirmingDelete: boolean;
   onEdit: () => void;
-  onDeleteRequest: () => void;
-  onDeleteConfirm: () => void;
-  onDeleteCancel: () => void;
+  onDelete: () => void;
 }
 
 const BrandCard: React.FC<BrandCardProps> = ({
   brand,
   isDeleting,
-  confirmingDelete,
   onEdit,
-  onDeleteRequest,
-  onDeleteConfirm,
-  onDeleteCancel,
+  onDelete,
 }) => {
 
   const brandTitle = brand.name || "Brand";
@@ -681,6 +687,7 @@ const BrandCard: React.FC<BrandCardProps> = ({
 
         <button
           onClick={onEdit}
+          disabled={isDeleting}
           className="flex-1 py-1.5 px-2 bg-slate-50 hover:bg-sky-50 text-slate-700 hover:text-[#0284C7] border border-slate-200/80 hover:border-sky-300 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
           title="Edit Brand"
         >
@@ -689,51 +696,15 @@ const BrandCard: React.FC<BrandCardProps> = ({
         </button>
 
         <button
-          onClick={onDeleteRequest}
-          className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200/80 hover:border-rose-200 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0"
+          onClick={onDelete}
+          disabled={isDeleting}
+          className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200/80 hover:border-rose-200 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-50"
           title="Delete Brand"
         >
-          <Trash2 size={13} />
+          {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
         </button>
 
       </div>
-
-      {/* Delete Confirmation */}
-
-      {confirmingDelete && (
-
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center gap-2.5 p-3 z-10 animate-fade-in">
-
-          <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
-            <Trash2 size={16} />
-          </div>
-
-          <p className="text-[11px] font-bold text-slate-800 text-center leading-tight">
-            Remove {brandTitle}?
-          </p>
-
-          <div className="flex gap-1.5 w-full mt-1">
-
-            <button
-              onClick={onDeleteCancel}
-              className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={onDeleteConfirm}
-              disabled={isDeleting}
-              className="flex-1 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold transition-colors disabled:opacity-60 cursor-pointer"
-            >
-              {isDeleting ? "..." : "Remove"}
-            </button>
-
-          </div>
-
-        </div>
-
-      )}
 
       {/* Delete Loading */}
 

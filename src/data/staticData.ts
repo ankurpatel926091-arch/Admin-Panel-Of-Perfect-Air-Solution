@@ -452,8 +452,8 @@ export const staticBlogs: BlogData[] = [
     category: "Technology",
     excerpt: "Discover how Variable Refrigerant Flow (VRF) technology delivers multi-zone temperature control and cuts seasonal power consumption in high-rise corporate towers and commercial projects.",
     readTime: "5 min read",
-    date: "Sep 12, 2024",
-    author: "Eng. Alok Sharma",
+    date: "Sep 12, 2026",
+    author: " Perfect Air Solution",
     image: vrfImg,
     tags: ["VRF / VRV", "Energy Efficiency", "Commercial HVAC", "BMS Automation"],
     content: [

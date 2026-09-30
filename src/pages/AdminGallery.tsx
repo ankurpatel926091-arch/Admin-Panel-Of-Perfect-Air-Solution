@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import Swal from 'sweetalert2';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Projects' },
@@ -298,14 +299,43 @@ setTotalItems(res.filteredTotal ?? res.total ?? items.length);      setCounts((p
   };
 
   const handleDelete = async (id: string) => {
+    const result = await Swal.fire({
+      title: 'Delete gallery item?',
+      text: 'This image will be permanently removed from the website gallery.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#0284C7',
+      cancelButtonColor: '#64748B',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) {
+      setConfirmDeleteId(null);
+      return;
+    }
+
     try {
       await deleteGalleryAPI(id);
+      setConfirmDeleteId(null);
       toast.success('Gallery item deleted successfully');
       fetchGalleryList();
-    } catch {
-      toast.error('Failed to delete gallery item');
-    } finally {
-      setConfirmDeleteId(null);
+
+      await Swal.fire({
+        title: 'Deleted!',
+        text: 'Gallery image has been removed successfully.',
+        icon: 'success',
+        confirmButtonColor: '#0284C7',
+      });
+    } catch (err: any) {
+      console.error('Delete Gallery Error:', err);
+      Swal.fire({
+        title: 'Delete failed',
+        text: err?.response?.data?.message || 'Failed to delete gallery item.',
+        icon: 'error',
+        confirmButtonColor: '#0284C7',
+      });
     }
   };
 
@@ -756,7 +786,7 @@ setTotalItems(res.filteredTotal ?? res.total ?? items.length);      setCounts((p
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setConfirmDeleteId(itemId);
+                            handleDelete(itemId);
                           }}
                           className="p-2 bg-white/90 hover:bg-white text-rose-600 hover:text-rose-700 rounded-xl shadow-md transition-all cursor-pointer hover:scale-105"
                           title="Delete Photo"

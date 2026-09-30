@@ -141,6 +141,20 @@ const AdminGalleryCategory: React.FC = () => {
       return;
     }
 
+    const isDuplicate = categories.some((c: any) => {
+      const cId = c._id || c.id;
+      const currentId = editingCategory
+        ? editingCategory._id || editingCategory.id
+        : null;
+      if (currentId && cId === currentId) return false;
+      return (c.title || "").trim().toLowerCase() === cleanTitle.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      toast.error("Category with this name already exists");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       if (editingCategory) {
@@ -155,6 +169,9 @@ const AdminGalleryCategory: React.FC = () => {
         toast.success("Category created successfully");
       }
       setIsModalOpen(false);
+      setEditingCategory(null);
+      setCategoryTitle("");
+      setCategoryIsActive(true);
       await fetchCategories();
     } catch (err: any) {
       toast.error(
@@ -162,26 +179,6 @@ const AdminGalleryCategory: React.FC = () => {
           err?.message ||
           "Failed to save category",
       );
-      // Optimistic update for fallback
-      if (editingCategory) {
-        const id = editingCategory._id || editingCategory.id;
-        setCategories((prev) =>
-          prev.map((c) =>
-            (c._id || c.id) === id ? { ...c, title: cleanTitle } : c,
-          ),
-        );
-      } else {
-        setCategories((prev) => [
-          ...prev,
-          {
-            _id: `cat_${Date.now()}`,
-            title: cleanTitle,
-            isActive: categoryIsActive,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      }
-      setIsModalOpen(false);
     } finally {
       setIsSubmitting(false);
     }

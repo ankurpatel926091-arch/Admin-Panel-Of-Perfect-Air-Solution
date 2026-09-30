@@ -33,11 +33,24 @@ const AdminBlogEditor: React.FC = () => {
   // Form states
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const SUGGESTED_TAGS = [
+    'VRF / VRV',
+    'Commercial HVAC',
+    'Residential AC',
+    'Split AC',
+    'Ductable & Cassette',
+    'Energy Efficiency',
+    'Maintenance Tips',
+    'HVAC Installation',
+  ];
 
   // If editing, find blog and populate
   useEffect(() => {
@@ -45,6 +58,7 @@ const AdminBlogEditor: React.FC = () => {
       const existing = blogs.find((b: any) => (b._id || b.id) === id);
       if (existing) {
         setTitle(existing.title || '');
+        setTags(Array.isArray(existing.tags) ? existing.tags : []);
         if (Array.isArray(existing.content)) {
           setContent(
             existing.content
@@ -54,10 +68,34 @@ const AdminBlogEditor: React.FC = () => {
         } else {
           setContent(existing.content || '');
         }
-        setPreviewUrl(existing.image?.url || existing.image || '');
+        setPreviewUrl(existing.image || '');
       }
     }
   }, [id, isEditing, blogs]);
+
+  // Tag helper handlers
+  const handleAddTag = (tagToAdd?: string) => {
+    const val = (tagToAdd || tagInput).trim();
+    if (!val) return;
+    if (tags.some((t) => t.toLowerCase() === val.toLowerCase())) {
+      toast.info('Tag already added');
+      setTagInput('');
+      return;
+    }
+    setTags([...tags, val]);
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (indexToRemove: number) => {
+    setTags(tags.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
 
   useEffect(()=>{
     if(location.state?.mode){
@@ -126,7 +164,18 @@ const AdminBlogEditor: React.FC = () => {
     try {
       setIsLoading(true);
       const fd = buildBlogFormData(
-        { title: title.trim(), content: content },
+        {
+          title: title.trim(),
+          content: content,
+          tags: tags,
+          readTime: `${readTime} min read`,
+          date: new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+          author: 'Perfect Air Solution',
+        },
         imageFile
       );
 
@@ -231,6 +280,91 @@ const AdminBlogEditor: React.FC = () => {
                       className="w-full text-base sm:text-lg font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/30 focus:border-[#0284C7] transition-all"
                     />
                   </div>
+
+                  {/* Topics / Tags */}
+                  <div className="pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                        Topics / Tags (Badges on Website)
+                      </label>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        {tags.length} added
+                      </span>
+                    </div>
+
+                    {/* Active Tags list */}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {tags.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-[#0284C7] border border-sky-200 shadow-2xs"
+                          >
+                            <span>{t}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTag(idx)}
+                              className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full p-0.5 transition-colors cursor-pointer"
+                              title="Remove tag"
+                            >
+                              <X size={13} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Tag input row */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={handleTagKeyDown}
+                        placeholder="Type a tag and press Enter (e.g. Split AC, Maintenance Tips)..."
+                        className="flex-1 text-sm font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0284C7]/30 focus:border-[#0284C7] transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddTag()}
+                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-[#0284C7] hover:text-white text-slate-700 text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        + Add Tag
+                      </button>
+                    </div>
+
+                    {/* Suggested Quick Tags */}
+                    <div className="mt-3.5">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Quick Suggested Tags (Click to Toggle):
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SUGGESTED_TAGS.map((st) => {
+                          const isSelected = tags.some((t) => t.toLowerCase() === st.toLowerCase());
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setTags(tags.filter((t) => t.toLowerCase() !== st.toLowerCase()));
+                                } else {
+                                  handleAddTag(st);
+                                }
+                              }}
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[#0284C7] text-white border-[#0284C7] shadow-xs'
+                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isSelected ? `✓ ${st}` : `+ ${st}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Article Body Card */}
@@ -275,6 +409,18 @@ const AdminBlogEditor: React.FC = () => {
               /* ── Live Article Preview ── */
               <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-2xs space-y-6">
                 <div className="space-y-3">
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map((t, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-[#0284C7] border border-sky-200"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-[#051B30] tracking-tight leading-tight">
                     {title || 'Article Title Preview'}
                   </h1>

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetBlogsQuery, useDeleteBlogMutation, useToggleBlogStatusMutation } from '@/store/api';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 import Loader from '@/components/ui/Loader';
 import AdminPagination from '@/components/AdminPagination';
 import useDebounce from '@/hooks/useDebounce';
@@ -30,7 +31,6 @@ const AdminBlogs = () => {
   const [toggleBlogStatus] = useToggleBlogStatusMutation();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [view, setView] = useState<'table' | 'grid'>('table');
@@ -81,16 +81,39 @@ const AdminBlogs = () => {
   };
 
   const handleDeleteConfirm = async (id: string) => {
+    const result = await Swal.fire({
+      title: 'Delete blog post?',
+      text: 'This blog post will be permanently removed.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#0284C7',
+      cancelButtonColor: '#64748B',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       setDeletingId(id);
       await deleteBlog(id).unwrap();
-      toast.success('Blog deleted successfully');
       await refetch();
-    } catch {
-      toast.error('Failed to delete blog');
+      await Swal.fire({
+        title: 'Deleted!',
+        text: 'Blog post deleted successfully.',
+        icon: 'success',
+        confirmButtonColor: '#0284C7',
+      });
+    } catch (err: any) {
+      await Swal.fire({
+        title: 'Delete failed',
+        text: err?.data?.message || err?.message || 'Failed to delete blog post.',
+        icon: 'error',
+        confirmButtonColor: '#0284C7',
+      });
     } finally {
       setDeletingId(null);
-      setConfirmDeleteId(null);
     }
   };
 
@@ -419,7 +442,6 @@ const AdminBlogs = () => {
                   const blogId = blog._id || blog.id;
                   const rawPreview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
                   const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                  const isConfirming = confirmDeleteId === blogId;
                   const isDeleting = deletingId === blogId;
                   const isToggling = togglingId === blogId;
                   const isActive = blog.isActive !== false;
@@ -474,25 +496,7 @@ const AdminBlogs = () => {
 
                       {/* Actions Column: Active/Inactive Button BEFORE View */}
                       <td className="px-6 py-4 align-middle text-right">
-                        {isConfirming ? (
-                          <div className="inline-flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1.5 shadow-sm">
-                            <span className="text-xs text-rose-600 font-bold">Delete?</span>
-                            <button
-                              onClick={() => handleDeleteConfirm(blogId)}
-                              disabled={isDeleting}
-                              className="text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-2.5 py-1 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                              {isDeleting ? '...' : 'Yes'}
-                            </button>
-                            <button
-                              onClick={() => setConfirmDeleteId(null)}
-                              className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1 rounded-lg transition-colors cursor-pointer"
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2">
                             {/* 1. Active / Inactive Button (Before View) */}
                             <button
                               type="button"
@@ -539,14 +543,14 @@ const AdminBlogs = () => {
 
                             {/* 4. Delete Button */}
                             <button
-                              onClick={() => setConfirmDeleteId(blogId)}
+                              onClick={() => handleDeleteConfirm(blogId)}
+                              disabled={isDeleting}
                               title="Delete Article"
-                              className="p-2.5 text-rose-600 bg-rose-50/80 hover:bg-rose-600 hover:text-white border border-rose-200/80 rounded-xl transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm"
+                              className="p-2.5 text-rose-600 bg-rose-50/80 hover:bg-rose-600 hover:text-white border border-rose-200/80 rounded-xl transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm disabled:opacity-50"
                             >
-                              <Trash2 size={14} />
+                              {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                             </button>
                           </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -561,7 +565,6 @@ const AdminBlogs = () => {
               const blogId = blog._id || blog.id;
               const rawPreview = Array.isArray(blog.content) ? blog.content[0] : blog.content;
               const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-              const isConfirming = confirmDeleteId === blogId;
               const isDeleting = deletingId === blogId;
               const isToggling = togglingId === blogId;
               const isActive = blog.isActive !== false;
@@ -623,24 +626,7 @@ const AdminBlogs = () => {
                         : 'Article'}
                     </span>
 
-                    {isConfirming ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleDeleteConfirm(blogId)}
-                          disabled={isDeleting}
-                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                        >
-                          {isDeleting ? '...' : 'Confirm'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5">
                         {/* 1. Active / Inactive Button (Before View) */}
                         <button
                           type="button"
@@ -685,14 +671,14 @@ const AdminBlogs = () => {
 
                         {/* 4. Delete Button */}
                         <button
-                          onClick={() => setConfirmDeleteId(blogId)}
-                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          onClick={() => handleDeleteConfirm(blogId)}
+                          disabled={isDeleting}
+                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                           title="Delete Blog"
                         >
-                          <Trash2 size={15} />
+                          {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                         </button>
                       </div>
-                    )}
                   </div>
                 </div>
               );

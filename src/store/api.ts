@@ -197,13 +197,30 @@ export const {
 
 // Blog REST helpers connected to backend with local fallback
 export const buildBlogFormData = (
-  data: { title: string; category?: string; content: string[] | string; excerpt?: string },
+  data: {
+    title: string;
+    category?: string;
+    content: string[] | string;
+    excerpt?: string;
+    date?: string;
+    author?: string;
+    readTime?: string;
+    tags?: string[] | string;
+  },
   imageFile: File | null
 ) => {
   const fd = new FormData();
   fd.append('title', data.title);
   if (data.category) {
     fd.append('category', data.category);
+  }
+
+  // Tags
+  if (data.tags) {
+    const tagsArr = Array.isArray(data.tags)
+      ? data.tags
+      : data.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    fd.append('tags', JSON.stringify(tagsArr));
   }
 
   // If content is string (from CKEditor), store directly; if array, JSON stringify
@@ -224,6 +241,20 @@ export const buildBlogFormData = (
 
   const excerpt = data.excerpt || plainText.slice(0, 160) || data.title;
   fd.append('excerpt', excerpt);
+
+  // Date, author, readTime
+  const blogDate =
+    data.date ||
+    new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  fd.append('date', blogDate);
+  fd.append('author', data.author || 'Perfect Air Solution');
+  if (data.readTime) {
+    fd.append('readTime', data.readTime);
+  }
 
   if (imageFile) {
     fd.append('image', imageFile);
