@@ -482,10 +482,17 @@ const AdminContact: React.FC = () => {
 
                       {/* Message */}
 
-                      <td className="px-6 py-4 align-middle max-w-xs">
+                      <td className="px-6 py-4 align-middle max-w-[240px]">
 
-                        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                          {contact.message}
+                        <p
+                          className="text-xs text-slate-600 truncate"
+                          title={contact.message}
+                        >
+                          {contact.message
+                            ? contact.message.length > 40
+                              ? `${contact.message.slice(0, 40)}...`
+                              : contact.message
+                            : '—'}
                         </p>
 
                       </td>
