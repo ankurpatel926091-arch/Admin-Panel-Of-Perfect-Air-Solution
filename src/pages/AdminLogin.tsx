@@ -163,7 +163,7 @@ const AdminLogin = () => {
         {/* Footer */}
         <div className="mt-7 pt-5 border-t border-slate-100 text-center">
           <Link
-            to="/"
+            to="https://perfect-air-solution.vercel.app/"
             className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-500 hover:text-sky-600 transition-colors"
           >
             <ArrowLeft size={16} />
