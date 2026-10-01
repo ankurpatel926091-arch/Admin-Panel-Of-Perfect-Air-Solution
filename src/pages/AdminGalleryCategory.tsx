@@ -314,17 +314,10 @@ const AdminGalleryCategory: React.FC = () => {
           <div className="p-4 border-b border-slate-100 space-y-3.5">
             {/* Search Input */}
             <div className="relative">
-              {isSearching ? (
-                <Loader2
-                  size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin"
-                />
-              ) : (
-                <Search
-                  size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                />
-              )}
+              <Search
+                size={15}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
 
               <input
                 type="text"

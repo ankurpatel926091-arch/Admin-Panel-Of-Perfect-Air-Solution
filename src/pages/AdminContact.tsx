@@ -300,18 +300,10 @@ const AdminContact: React.FC = () => {
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
 
         <div className="relative flex-1 min-w-[260px]">
-
-          {isSearching ? (
-            <Loader2
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin"
-            />
-          ) : (
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-            />
-          )}
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
 
           <input
             type="text"

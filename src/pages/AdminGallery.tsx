@@ -93,7 +93,7 @@ const AdminGallery: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [counts, setCounts] = useState({ total: 0, active: 0, inactive: 0 });
-  const itemsPerPage = 8;
+  const itemsPerPage = 12;
 
   const activePercentage = useMemo(() => {
     if (counts.total === 0) return 0;

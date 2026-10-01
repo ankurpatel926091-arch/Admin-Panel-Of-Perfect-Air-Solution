@@ -322,17 +322,10 @@ const AdminBlogs = () => {
         {/* Search input + View switch */}
         <div className="flex items-center gap-3 flex-1 md:max-w-md">
           <div className="relative flex-1">
-            {isSearching ? (
-              <Loader2
-                size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0284C7] animate-spin pointer-events-none"
-              />
-            ) : (
-              <Search
-                size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-            )}
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
             <input
               type="text"
               value={searchQuery}
