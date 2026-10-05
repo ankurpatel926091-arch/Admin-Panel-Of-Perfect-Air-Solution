@@ -519,7 +519,13 @@ setTotalItems(res.filteredTotal ?? res.total ?? items.length);      setCounts((p
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-blue-950">{counts.total}</div>
+            <div className="text-3xl sm:text-4xl font-black text-blue-950">
+              {isLoading ? (
+                <div className="h-8 w-16 bg-blue-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                counts.total
+              )}
+            </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
               Live Photos
             </span>
@@ -536,7 +542,11 @@ setTotalItems(res.filteredTotal ?? res.total ?? items.length);      setCounts((p
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-purple-950">
-              {dbCategories.filter((c: any) => c.isActive !== false).length}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-purple-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                dbCategories.filter((c: any) => c.isActive !== false).length
+              )}
             </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
               Active Categories
@@ -553,7 +563,13 @@ setTotalItems(res.filteredTotal ?? res.total ?? items.length);      setCounts((p
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl sm:text-4xl font-black text-emerald-950">{activePercentage}%</div>
+            <div className="text-3xl sm:text-4xl font-black text-emerald-950">
+              {isLoading ? (
+                <div className="h-8 w-16 bg-emerald-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                `${activePercentage}%`
+              )}
+            </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
               {counts.active} Active &bull; {counts.inactive} Inactive
             </span>

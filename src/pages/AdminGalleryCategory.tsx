@@ -280,7 +280,11 @@ const AdminGalleryCategory: React.FC = () => {
             </span>
 
             <span className="text-3xl font-extrabold text-[#051B30] mt-1 block">
-              {counts.total}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-slate-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                counts.total
+              )}
             </span>
           </div>
 
@@ -296,7 +300,11 @@ const AdminGalleryCategory: React.FC = () => {
             </span>
 
             <span className="text-3xl font-extrabold text-emerald-600 mt-1 block">
-              {counts.active}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-emerald-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                counts.active
+              )}
             </span>
           </div>
 

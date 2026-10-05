@@ -20,7 +20,7 @@ import { getDashboardStats } from "@/api/dashboard.api";
 /* ─── Skeleton Loading Badge ─────────────────────────────────── */
 const CountBadge = ({ loading, count }: { loading: boolean; count: number }) =>
   loading ? (
-    <span className="inline-block w-8 h-8 rounded-lg bg-slate-100 animate-pulse" />
+    <span className="inline-block w-14 h-8 rounded-lg bg-slate-200/80 animate-pulse align-middle" />
   ) : (
     <span>{count}</span>
   );
@@ -263,9 +263,21 @@ const AdminDashboard = () => {
 
             {/* Inquiries List */}
             {isLoading ? (
-              <div className="space-y-3 py-4">
-                {[1, 2].map((n) => (
-                  <div key={n} className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+              <div className="space-y-3 py-1">
+                {[1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/60 animate-pulse gap-3"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+                      <div className="space-y-2">
+                        <div className="w-32 h-4 bg-slate-200 rounded" />
+                        <div className="w-48 h-3 bg-slate-200/70 rounded" />
+                      </div>
+                    </div>
+                    <div className="w-16 h-3 bg-slate-200/70 rounded self-end sm:self-center" />
+                  </div>
                 ))}
               </div>
             ) : recentContacts.length === 0 ? (

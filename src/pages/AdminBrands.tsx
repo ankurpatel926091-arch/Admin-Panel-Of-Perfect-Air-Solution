@@ -260,7 +260,11 @@ const AdminBrands = () => {
           <div className="mt-4 flex items-baseline justify-between">
 
             <div className="text-3xl sm:text-4xl font-black text-blue-950">
-              {counts.total}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-blue-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                counts.total
+              )}
             </div>
 
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
@@ -292,7 +296,11 @@ const AdminBrands = () => {
           <div className="mt-4 flex items-baseline justify-between">
 
             <div className="text-3xl sm:text-4xl font-black text-emerald-950">
-              {counts.active}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-emerald-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                counts.active
+              )}
             </div>
 
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
@@ -324,12 +332,11 @@ const AdminBrands = () => {
           <div className="mt-4 flex items-baseline justify-between">
 
             <div className="text-3xl sm:text-4xl font-black text-purple-950">
-              {counts.total
-                ? Math.round(
-                    (counts.active / counts.total) * 100
-                  )
-                : 0}
-              %
+              {isLoading ? (
+                <div className="h-8 w-16 bg-purple-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                `${counts.total ? Math.round((counts.active / counts.total) * 100) : 0}%`
+              )}
             </div>
 
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200">

@@ -217,7 +217,11 @@ const AdminContact: React.FC = () => {
           <div className="mt-3">
 
             <div className="text-3xl font-black text-blue-950">
-              {globalTotal || totalContacts}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-blue-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                globalTotal || totalContacts
+              )}
             </div>
 
             <p className="text-[11px] text-blue-600 font-semibold mt-1">
@@ -248,7 +252,11 @@ const AdminContact: React.FC = () => {
           <div className="mt-3">
 
             <div className="text-3xl font-black text-slate-900">
-              {contacts.length}
+              {isLoading ? (
+                <div className="h-8 w-14 bg-slate-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                contacts.length
+              )}
             </div>
 
             <p className="text-[11px] text-slate-500 font-semibold mt-1">
@@ -279,7 +287,11 @@ const AdminContact: React.FC = () => {
           <div className="mt-3">
 
             <div className="text-3xl font-black text-cyan-950">
-              {debouncedSearch.trim() ? displayContacts.length : totalContacts}
+              {isLoading ? (
+                <div className="h-8 w-16 bg-cyan-200/60 rounded-md animate-pulse my-0.5" />
+              ) : (
+                debouncedSearch.trim() ? displayContacts.length : totalContacts
+              )}
             </div>
 
             <p className="text-[11px] text-cyan-600 font-semibold mt-1">
