@@ -23,6 +23,7 @@ import {
   Loader2,
   Eye,
 } from 'lucide-react';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 const AdminBlogs = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const AdminBlogs = () => {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, boolean>>({});
 
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +49,14 @@ const AdminBlogs = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, statusFilter]);
+
+  const getIsActive = (blog: any) => {
+    const id = blog._id || blog.id;
+    if (id && statusOverrides[id] !== undefined) {
+      return statusOverrides[id];
+    }
+    return blog.isActive !== false;
+  };
 
   const handleAdd = () => {
     navigate('/admin/blogs/create');
@@ -67,13 +77,30 @@ const AdminBlogs = () => {
   const handleToggleStatus = async (blog: any) => {
     const id = blog._id || blog.id;
     if (!id) return;
+
+    const currentStatus = getIsActive(blog);
+    const targetStatus = !currentStatus;
+
+    // 1. Instantly flip the switch button state on screen
+    setStatusOverrides((prev) => ({ ...prev, [id]: targetStatus }));
+    setTogglingId(id);
+
     try {
-      setTogglingId(id);
-      await toggleBlogStatus(id).unwrap();
-      const nextStatus = blog.isActive === false;
-      toast.success(`Blog is now ${nextStatus ? 'Active' : 'Inactive'}`);
+      // 2. Call backend to update
+      const res = await toggleBlogStatus(id).unwrap();
+      const confirmedStatus =
+        res?.data?.isActive !== undefined ? res.data.isActive : targetStatus;
+
+      setStatusOverrides((prev) => ({ ...prev, [id]: confirmedStatus }));
+
+      // 3. Sync full data in background
       await refetch();
+
+      // 4. Show toast notification AFTER status is toggled
+      toast.success(`Blog is now ${confirmedStatus ? 'Active' : 'Inactive'}`);
     } catch (err: any) {
+      // Revert if request failed
+      setStatusOverrides((prev) => ({ ...prev, [id]: currentStatus }));
       toast.error(err?.data?.message || err?.message || 'Failed to update blog status');
     } finally {
       setTogglingId(null);
@@ -119,10 +146,10 @@ const AdminBlogs = () => {
 
   const counts = useMemo(() => {
     const total = blogs.length;
-    const active = blogs.filter((b: any) => b.isActive !== false).length;
-    const inactive = blogs.filter((b: any) => b.isActive === false).length;
+    const active = blogs.filter((b: any) => getIsActive(b)).length;
+    const inactive = blogs.filter((b: any) => !getIsActive(b)).length;
     return { total, active, inactive };
-  }, [blogs]);
+  }, [blogs, statusOverrides]);
 
   const filteredBlogs = useMemo(() => {
     const q = debouncedSearch.toLowerCase().trim();
@@ -133,14 +160,15 @@ const AdminBlogs = () => {
         blog.author?.toLowerCase().includes(q) ||
         blog.excerpt?.toLowerCase().includes(q);
 
+      const isActive = getIsActive(blog);
       const matchStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'active' && blog.isActive !== false) ||
-        (statusFilter === 'inactive' && blog.isActive === false);
+        (statusFilter === 'active' && isActive) ||
+        (statusFilter === 'inactive' && !isActive);
 
       return matchSearch && matchStatus;
     });
-  }, [blogs, debouncedSearch, statusFilter]);
+  }, [blogs, debouncedSearch, statusFilter, statusOverrides]);
 
   const paginatedBlogs = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -437,7 +465,7 @@ const AdminBlogs = () => {
                   const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                   const isDeleting = deletingId === blogId;
                   const isToggling = togglingId === blogId;
-                  const isActive = blog.isActive !== false;
+                  const isActive = getIsActive(blog);
 
                   return (
                     <tr
@@ -490,31 +518,19 @@ const AdminBlogs = () => {
                       {/* Actions Column: Active/Inactive Button BEFORE View */}
                       <td className="px-6 py-4 align-middle text-right">
                         <div className="flex items-center justify-end gap-2">
-                            {/* 1. Active / Inactive Button (Before View) */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(blog)}
-                              disabled={isToggling}
-                              title={isActive ? 'Click to mark as Inactive' : 'Click to mark as Active'}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer border shadow-2xs active:scale-95 disabled:opacity-60 ${
-                                isActive
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/90 hover:bg-emerald-100 hover:border-emerald-300'
-                                  : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 hover:text-slate-700'
-                              }`}
+                            {/* 1. Active / Inactive Toggle Switch (Before View) */}
+                            <div
+                              className="inline-flex items-center"
+                              title={isActive ? 'Active (Click to mark Inactive)' : 'Inactive (Click to mark Active)'}
                             >
-                              {isToggling ? (
-                                <Loader2 size={12} className="animate-spin text-current" />
-                              ) : (
-                                <span
-                                  className={`w-2 h-2 rounded-full ${
-                                    isActive
-                                      ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50'
-                                      : 'bg-slate-400'
-                                  }`}
-                                />
-                              )}
-                              <span>{isActive ? 'Active' : 'Inactive'}</span>
-                            </button>
+                              <ToggleSwitch
+                                size="sm"
+                                checked={isActive}
+                                disabled={isToggling}
+                                onChange={() => handleToggleStatus(blog)}
+                                ariaLabel="Toggle blog active status"
+                              />
+                            </div>
 
                             {/* 2. View Button */}
                             <button
@@ -560,7 +576,7 @@ const AdminBlogs = () => {
               const preview = (rawPreview || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
               const isDeleting = deletingId === blogId;
               const isToggling = togglingId === blogId;
-              const isActive = blog.isActive !== false;
+              const isActive = getIsActive(blog);
 
               return (
                 <div
@@ -620,29 +636,19 @@ const AdminBlogs = () => {
                     </span>
 
                     <div className="flex items-center gap-1.5">
-                        {/* 1. Active / Inactive Button (Before View) */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(blog)}
-                          disabled={isToggling}
-                          title={isActive ? 'Click to mark as Inactive' : 'Click to mark as Active'}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all duration-150 cursor-pointer border shadow-2xs active:scale-95 disabled:opacity-60 ${
-                            isActive
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-                          }`}
+                        {/* 1. Active / Inactive Toggle Switch (Before View) */}
+                        <div
+                          className="inline-flex items-center"
+                          title={isActive ? 'Active (Click to mark Inactive)' : 'Inactive (Click to mark Active)'}
                         >
-                          {isToggling ? (
-                            <Loader2 size={11} className="animate-spin text-current" />
-                          ) : (
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                isActive ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-slate-400'
-                              }`}
-                            />
-                          )}
-                          <span>{isActive ? 'Active' : 'Inactive'}</span>
-                        </button>
+                          <ToggleSwitch
+                            size="sm"
+                            checked={isActive}
+                            disabled={isToggling}
+                            onChange={() => handleToggleStatus(blog)}
+                            ariaLabel="Toggle blog active status"
+                          />
+                        </div>
 
                         {/* 2. View Button */}
                         <button

@@ -18,6 +18,14 @@ import {
 const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const API_URL = RAW_BASE_URL.replace(/\/api\/?$/, '');
 
+const getAdminToken = () => {
+  try {
+    const cookieMatch = document.cookie.match(/(^| )perfectAirAdminToken=([^;]+)/);
+    if (cookieMatch) return decodeURIComponent(cookieMatch[2]);
+  } catch {}
+  return localStorage.getItem('adminToken') || '';
+};
+
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fakeBaseQuery(),
@@ -66,7 +74,7 @@ export const api = createApi({
     deleteBlog: builder.mutation<{ message: string }, string>({
       async queryFn(id) {
         try {
-          const token = localStorage.getItem('adminToken') || '';
+          const token = getAdminToken();
           await fetch(`${API_URL}/api/blogs/${id}`, {
             method: 'DELETE',
             headers: {
@@ -82,21 +90,31 @@ export const api = createApi({
     toggleBlogStatus: builder.mutation<{ success: boolean; data?: any; message?: string }, string>({
       async queryFn(id) {
         try {
-          const token = localStorage.getItem('adminToken') || '';
+          const token = getAdminToken();
           const res = await fetch(`${API_URL}/api/blogs/status/${id}`, {
             method: 'PATCH',
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
+          const data = await res.json().catch(() => ({}));
           if (res.ok) {
-            const data = await res.json();
             return { data };
           }
-        } catch {
-          // Ignore fallback
+          return {
+            error: {
+              status: res.status,
+              data: data.message || 'Failed to update blog status',
+            },
+          };
+        } catch (err: any) {
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              data: err?.message || 'Failed to update blog status',
+            },
+          };
         }
-        return { data: { success: true } };
       },
     }),
     deleteBrand: builder.mutation<{ message: string }, string>({

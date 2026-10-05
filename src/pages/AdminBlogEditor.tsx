@@ -52,6 +52,15 @@ const AdminBlogEditor: React.FC = () => {
     'HVAC Installation',
   ];
 
+  const extractImageUrl = (img: any): string => {
+    if (!img) return '';
+    if (typeof img === 'string') return img;
+    if (typeof img === 'object') {
+      return img.url || img.secure_url || '';
+    }
+    return '';
+  };
+
   // If editing, find blog and populate
   useEffect(() => {
     if (isEditing && id) {
@@ -68,7 +77,7 @@ const AdminBlogEditor: React.FC = () => {
         } else {
           setContent(existing.content || '');
         }
-        setPreviewUrl(existing.image || '');
+        setPreviewUrl(extractImageUrl(existing.image));
       }
     }
   }, [id, isEditing, blogs]);

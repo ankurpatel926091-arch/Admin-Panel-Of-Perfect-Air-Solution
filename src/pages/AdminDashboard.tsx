@@ -389,7 +389,7 @@ const AdminDashboard = () => {
               </Link>
 
               <Link
-                to="/admin/brands/new"
+                to="/admin/brands"
                 className="flex items-center gap-3.5 p-3 rounded-xl bg-emerald-50/60 hover:bg-emerald-50 border border-emerald-100/80 transition-all duration-200 group cursor-pointer"
               >
                 <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
@@ -397,7 +397,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-bold text-emerald-900 group-hover:text-emerald-700 transition-colors truncate">
-                    Upload Brand
+                     Brand
                   </p>
                   <p className="text-[11px] text-emerald-600/70 font-medium truncate">
                     Authorized brand logo &amp; dealer tier

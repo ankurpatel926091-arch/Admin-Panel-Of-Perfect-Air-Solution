@@ -33,7 +33,13 @@ const AdminBlogModal: React.FC<AdminBlogModalProps> = ({ isOpen, onClose, blog }
       if (blog) {
         setTitle(blog.title || '');
         setContent(Array.isArray(blog.content) ? blog.content.join('\n\n') : (blog.content || ''));
-        setPreviewUrl(blog.image || '');
+        const imgUrl =
+          typeof blog.image === 'object' && blog.image !== null
+            ? blog.image.url || blog.image.secure_url || ''
+            : typeof blog.image === 'string'
+            ? blog.image
+            : '';
+        setPreviewUrl(imgUrl);
       } else {
         setTitle('');
         setContent('');
