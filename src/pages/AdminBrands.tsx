@@ -196,6 +196,7 @@ const AdminBrands = () => {
 
             <button
               onClick={() => navigate(-1)}
+              
               type="button"
               title="Go Back"
               className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#0284C7] to-cyan-400 hover:from-[#0369A1] hover:to-cyan-500 text-white flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-95 group shrink-0"
